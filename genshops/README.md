@@ -16,7 +16,7 @@ Feel free to explore the codebase, make modifications, and adapt it to suit your
 
 ### Usage
 
-'''go
+```go
 package main
 
 import (
@@ -38,13 +38,13 @@ func main() {
 		log.Println(shop.Text)
 	}
 }
-'''
+```
 
 Which prints for example:
 
-'''shell
+```shell
 $ Glorbnorb's glorious gear gallery
-'''
+```
 
 ### Contributing
 
