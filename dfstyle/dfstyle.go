@@ -368,8 +368,8 @@ func Percipitation(preciphm, temphm *Heightmap) {
 		}
 	*/
 
-	precip := TCOD_noise_new(2, TCOD_NOISE_DEFAULT_HURST, TCOD_NOISE_DEFAULT_LACUNARITY)
-	TCOD_heightmap_add_fbm(preciphm, precip, 2, 2, 0, 0, 32, 1, 1)
+	precip := newNoise(2, TCOD_NOISE_DEFAULT_HURST, TCOD_NOISE_DEFAULT_LACUNARITY)
+	preciphm.AddFBM(precip, 2, 2, 0, 0, 32, 1, 1)
 	preciphm.Normalize(0.0, 1.0)
 }
 
@@ -468,8 +468,8 @@ func MasterWorldGen() [][]Tile {
 	hm.Normalize(0.0, 1.0)
 
 	noisehm := HeightmapNew(WORLD_WIDTH, WORLD_HEIGHT)
-	noise2d := TCOD_noise_new(2, TCOD_NOISE_DEFAULT_HURST, TCOD_NOISE_DEFAULT_LACUNARITY)
-	TCOD_heightmap_add_fbm(noisehm, noise2d, 6, 6, 0, 0, 32, 1, 1)
+	noise2d := newNoise(2, TCOD_NOISE_DEFAULT_HURST, TCOD_NOISE_DEFAULT_LACUNARITY)
+	noisehm.AddFBM(noise2d, 6, 6, 0, 0, 32, 1, 1)
 	noisehm.Normalize(0.0, 1.0)
 	HeightmapMultiplyHm(hm, noisehm, hm)
 	fmt.Println("- Apply Simplex -")
@@ -484,10 +484,10 @@ func MasterWorldGen() [][]Tile {
 	TectonicGen(hm, 1)
 	fmt.Println("- Tectonic Gen -")
 
-	HeightmapRainErosion(hm, WORLD_WIDTH*WORLD_HEIGHT, 0.07, 0)
+	hm.RainErosion(WORLD_WIDTH*WORLD_HEIGHT, 0.07, 0)
 	fmt.Println("- Erosion -")
 
-	HeightmapClamp(hm, 0.0, 1.0)
+	hm.Clamp(0.0, 1.0)
 
 	//Temperature
 	temp := HeightmapNew(WORLD_WIDTH, WORLD_HEIGHT)
@@ -505,8 +505,8 @@ func MasterWorldGen() [][]Tile {
 	//Drainage
 
 	drainhm := HeightmapNew(WORLD_WIDTH, WORLD_HEIGHT)
-	drain := TCOD_noise_new(2, TCOD_NOISE_DEFAULT_HURST, TCOD_NOISE_DEFAULT_LACUNARITY)
-	TCOD_heightmap_add_fbm(drainhm, drain, 2, 2, 0, 0, 32, 1, 1)
+	drain := newNoise(2, TCOD_NOISE_DEFAULT_HURST, TCOD_NOISE_DEFAULT_LACUNARITY)
+	drainhm.AddFBM(drain, 2, 2, 0, 0, 32, 1, 1)
 	drainhm.Normalize(0.0, 1.0)
 	fmt.Println("- Drainage Calculation -")
 

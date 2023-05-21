@@ -32,30 +32,42 @@ type Noise struct {
 	noiseType       NoiseType
 }
 
-const WAVELET_TILE_SIZE = 32
-const WAVELET_ARAD = 16
+func newNoise(ndim int, hurst, lacunarity float64) *Noise {
+	data := &Noise{}
+	data.ndim = ndim
+	for i := 0; i < 256; i++ {
+		data.Map[i] = uint8(i)
+		for j := 0; j < data.ndim; j++ {
+			data.buffer[i][j] = randFloat(-0.5, 0.5)
+		}
+		data.normalize(data.buffer[i][:])
+	}
+	for i := 255; i >= 0; i-- {
+		j := randInt(0, 255)
+		genericSwap(&data.Map[i], &data.Map[j])
+	}
+	data.H = hurst
+	data.lacunarity = lacunarity
+	f := float64(1)
+	for i := 0; i < TCOD_NOISE_MAX_OCTAVES; i++ {
+		data.exponent[i] = 1.0 / f
+		f *= lacunarity
+	}
+	data.noiseType = NoiseTypePerlin
 
-const SIMPLEX_SCALE = 0.5
-const WAVELET_SCALE = 2.0
+	return data
+}
+
+const (
+	WAVELET_TILE_SIZE = 32
+	WAVELET_ARAD      = 16
+	SIMPLEX_SCALE     = 0.5
+	WAVELET_SCALE     = 2.0
+)
 
 // Common noise function pointer.
 // Right now `TCOD_noise_wavelet` prevents `noise` from being const.
-type TCOD_noise_func_t func(noise *Noise, f []float64) float64
-
-// Return a floating point value clamped between -1.0f and 1.0f exclusively.
-// The return value excludes -1.0f and 1.0f to avoid rounding issues.
-
-func clamp_signed_f(value float64) float64 {
-	const LOW = -1.0 + math.SmallestNonzeroFloat64
-	const HIGH = 1.0 - math.SmallestNonzeroFloat64
-	if value < LOW {
-		return LOW
-	}
-	if value > HIGH {
-		return HIGH
-	}
-	return value
-}
+type noiseFunc func(noise *Noise, f []float64) float64
 
 func lattice(data *Noise, ix int, fx float64, iy int, fy float64, iz int, fz float64, iw int, fw float64) float64 {
 	n := [4]int{ix, iy, iz, iw}
@@ -71,25 +83,12 @@ func lattice(data *Noise, ix int, fx float64, iy int, fy float64, iz int, fz flo
 	return value
 }
 
-const DEFAULT_SEED uint32 = 0x15687436
-const DELTA float64 = 1e-6
+const (
+	DEFAULT_SEED uint32  = 0x15687436
+	DELTA        float64 = 1e-6
+)
 
-func FLOOR(a float64) int {
-	if a > 0 {
-		return int(a)
-	}
-	return int(a) - 1
-}
-
-func CUBIC(a float64) float64 {
-	return a * a * (3 - 2*a)
-}
-
-func GENERIC_SWAP(x, y interface{}) {
-	x, y = y, x
-}
-
-func normalize(data *Noise, f []float64) {
+func (data *Noise) normalize(f []float64) {
 	magnitude := float64(0)
 	for i := 0; i < data.ndim; i++ {
 		magnitude += f[i] * f[i]
@@ -100,44 +99,9 @@ func normalize(data *Noise, f []float64) {
 	}
 }
 
-func TCOD_noise_new(ndim int, hurst, lacunarity float64) *Noise {
-	data := &Noise{}
-	data.ndim = ndim
-	for i := 0; i < 256; i++ {
-		data.Map[i] = uint8(i)
-		for j := 0; j < data.ndim; j++ {
-			data.buffer[i][j] = TCOD_random_get_float(-0.5, 0.5)
-		}
-		normalize(data, data.buffer[i][:])
-	}
-	for i := 255; i >= 0; i-- {
-		j := TCOD_random_get_int(0, 255)
-		GENERIC_SWAP(&data.Map[i], &data.Map[j])
-	}
-	data.H = hurst
-	data.lacunarity = lacunarity
-	f := float64(1)
-	for i := 0; i < TCOD_NOISE_MAX_OCTAVES; i++ {
-		data.exponent[i] = 1.0 / f
-		f *= lacunarity
-	}
-	data.noiseType = NoiseTypePerlin
-
-	return data
-}
-
-func cubic(a float64) float64 {
-	return a * a * (3 - 2*a)
-}
-
-func lerp(a, b, x float64) float64 {
-	return a + x*(b-a)
-}
-
 func noisePerlin(data *Noise, f []float64) float64 {
-	n := [TCOD_NOISE_MAX_DIMENSIONS]int{}
-	r := [TCOD_NOISE_MAX_DIMENSIONS]float64{}
-	w := [TCOD_NOISE_MAX_DIMENSIONS]float64{}
+	var n [TCOD_NOISE_MAX_DIMENSIONS]int
+	var r, w [TCOD_NOISE_MAX_DIMENSIONS]float64
 	for i := 0; i < data.ndim; i++ {
 		n[i] = int(math.Floor(float64(f[i])))
 		r[i] = f[i] - float64(n[i])
@@ -260,23 +224,6 @@ func noisePerlin(data *Noise, f []float64) float64 {
 		)
 	}
 	return clampSignedF(value)
-}
-
-func clampSignedF(x float64) float64 {
-	if x < -1.0 {
-		return -1.0
-	}
-	if x > 1.0 {
-		return 1.0
-	}
-	return x
-}
-func absmod(x, n int) int {
-	m := x % n
-	if m < 0 {
-		m += n
-	}
-	return m
 }
 
 // simplex noise, adapted from Ken Perlin's presentation at Siggraph 2001
@@ -687,10 +634,9 @@ func noiseSimplex(data *Noise, f []float64) float64 {
 	default:
 		return math.NaN()
 	}
-	return 0.0
 }
 
-func noiseFbmInt(noise *Noise, f []float64, octaves float64, fn func(*Noise, []float64) float64) float64 {
+func (noise *Noise) noiseFbmInt(f []float64, octaves float64, fn func(*Noise, []float64) float64) float64 {
 	tf := make([]float64, noise.ndim)
 	copy(tf, f)
 	value := float64(0)
@@ -707,14 +653,14 @@ func noiseFbmInt(noise *Noise, f []float64, octaves float64, fn func(*Noise, []f
 }
 
 func noiseFbmPerlin(noise *Noise, f []float64, octaves float64) float64 {
-	return noiseFbmInt(noise, f, octaves, noisePerlin)
+	return noise.noiseFbmInt(f, octaves, noisePerlin)
 }
 
 func noiseFbmSimplex(noise *Noise, f []float64, octaves float64) float64 {
-	return noiseFbmInt(noise, f, octaves, noiseSimplex)
+	return noise.noiseFbmInt(f, octaves, noiseSimplex)
 }
 
-func noiseTurbulenceInt(noise *Noise, f []float64, octaves float64, fn func(*Noise, []float64) float64) float64 {
+func (noise *Noise) noiseTurbulenceInt(f []float64, octaves float64, fn func(*Noise, []float64) float64) float64 {
 	tf := make([]float64, noise.ndim)
 	copy(tf, f)
 	value := float64(0)
@@ -733,11 +679,11 @@ func noiseTurbulenceInt(noise *Noise, f []float64, octaves float64, fn func(*Noi
 }
 
 func noiseTurbulencePerlin(noise *Noise, f []float64, octaves float64) float64 {
-	return noiseTurbulenceInt(noise, f, octaves, noisePerlin)
+	return noise.noiseTurbulenceInt(f, octaves, noisePerlin)
 }
 
 func noiseTurbulenceSimplex(noise *Noise, f []float64, octaves float64) float64 {
-	return noiseTurbulenceInt(noise, f, octaves, noiseSimplex)
+	return noise.noiseTurbulenceInt(f, octaves, noiseSimplex)
 }
 
 // wavelet noise, adapted from Robert L. Cook and Tony Derose 'Wavelet noise' paper
@@ -748,11 +694,11 @@ func noiseWaveletDownsample(from []float64, to []float64, stride int) {
 		0.655340, 0.033979, -0.243780, -0.025936, 0.103311, 0.011655, -0.044412, -0.005040,
 		0.019120, 0.002172, -0.008233, -0.000938, 0.003546, 0.000410, -0.001528, 0.000334,
 	}
-	a := aCoefficients[WAVELET_ARAD:]
+	a := aCoefficients //[WAVELET_ARAD:]
 	for i := 0; i < WAVELET_TILE_SIZE/2; i++ {
 		to[i*stride] = 0
 		for k := 2*i - WAVELET_ARAD; k < 2*i+WAVELET_ARAD; k++ {
-			to[i*stride] += a[k-2*i] * from[absmod(k, WAVELET_TILE_SIZE)*stride]
+			to[i*stride] += a[WAVELET_ARAD+k-2*i] * from[absmod(k, WAVELET_TILE_SIZE)*stride]
 		}
 	}
 }
@@ -768,13 +714,13 @@ func noiseWaveletUpsample(from []float64, to []float64, stride int) {
 	}
 }
 
-func noiseWaveletInit(data *Noise) {
+func (data *Noise) noiseWaveletInit() {
 	sz := WAVELET_TILE_SIZE * WAVELET_TILE_SIZE * WAVELET_TILE_SIZE * int(unsafe.Sizeof(float64(0)))
 	temp1 := make([]float64, sz)
 	temp2 := make([]float64, sz)
 	noise := make([]float64, sz)
 	for i := 0; i < WAVELET_TILE_SIZE*WAVELET_TILE_SIZE*WAVELET_TILE_SIZE; i++ {
-		noise[i] = TCOD_random_get_float(-1.0, 1.0)
+		noise[i] = randFloat(-1.0, 1.0)
 	}
 	for iy := 0; iy < WAVELET_TILE_SIZE; iy++ {
 		for iz := 0; iz < WAVELET_TILE_SIZE; iz++ {
@@ -824,7 +770,7 @@ func noiseWavelet(data *Noise, f []float64) float64 {
 		return float64(math.NaN()) // not supported
 	}
 	if data.waveletTileData == nil {
-		noiseWaveletInit(data)
+		data.noiseWaveletInit()
 	}
 	pf := [3]float64{0, 0, 0}
 	for i := 0; i < data.ndim; i++ {
@@ -858,18 +804,18 @@ func noiseWavelet(data *Noise, f []float64) float64 {
 }
 
 func noiseFbmWavelet(noise *Noise, f []float64, octaves float64) float64 {
-	return noiseFbmInt(noise, f, octaves, noiseWavelet)
+	return noise.noiseFbmInt(f, octaves, noiseWavelet)
 }
 
 func noiseTurbulenceWavelet(noise *Noise, f []float64, octaves float64) float64 {
-	return noiseTurbulenceInt(noise, f, octaves, noiseWavelet)
+	return noise.noiseTurbulenceInt(f, octaves, noiseWavelet)
 }
 
-func noiseSetType(noise *Noise, noiseType NoiseType) {
+func (noise *Noise) SetType(noiseType NoiseType) {
 	noise.noiseType = noiseType
 }
 
-func noiseGetEx(noise *Noise, f []float64, noiseType NoiseType) float64 {
+func (noise *Noise) noiseGetEx(f []float64, noiseType NoiseType) float64 {
 	switch noiseType {
 	case NoiseTypePerlin:
 		return noisePerlin(noise, f)
@@ -882,7 +828,7 @@ func noiseGetEx(noise *Noise, f []float64, noiseType NoiseType) float64 {
 	}
 }
 
-func noiseGetFbmEx(noise *Noise, f []float64, octaves float64, noiseType NoiseType) float64 {
+func (noise *Noise) noiseGetFbmEx(f []float64, octaves float64, noiseType NoiseType) float64 {
 	switch noiseType {
 	case NoiseTypePerlin:
 		return noiseFbmPerlin(noise, f, octaves)
@@ -895,7 +841,7 @@ func noiseGetFbmEx(noise *Noise, f []float64, octaves float64, noiseType NoiseTy
 	}
 }
 
-func noiseGetTurbulenceEx(noise *Noise, f []float64, octaves float64, noiseType NoiseType) float64 {
+func (noise *Noise) noiseGetTurbulenceEx(f []float64, octaves float64, noiseType NoiseType) float64 {
 	switch noiseType {
 	case NoiseTypePerlin:
 		return noiseTurbulencePerlin(noise, f, octaves)
@@ -909,15 +855,15 @@ func noiseGetTurbulenceEx(noise *Noise, f []float64, octaves float64, noiseType 
 }
 
 func noiseGet(noise *Noise, f []float64) float64 {
-	return noiseGetEx(noise, f, noise.noiseType)
+	return noise.noiseGetEx(f, noise.noiseType)
 }
 
 func noiseGetFbm(noise *Noise, f []float64, octaves float64) float64 {
-	return noiseGetFbmEx(noise, f, octaves, noise.noiseType)
+	return noise.noiseGetFbmEx(f, octaves, noise.noiseType)
 }
 
 func noiseGetTurbulence(noise *Noise, f []float64, octaves float64) float64 {
-	return noiseGetTurbulenceEx(noise, f, octaves, noise.noiseType)
+	return noise.noiseGetTurbulenceEx(f, octaves, noise.noiseType)
 }
 
 /*
@@ -929,23 +875,9 @@ func noiseDelete(noise *Noise) {
 }
 */
 
-func noiseGetVectorized(
-	noise *Noise,
-	noiseType NoiseType,
-	n int,
-	x []float64,
-	y []float64,
-	z []float64,
-	w []float64,
-	out []float64,
-) {
+func noiseGetVectorized(noise *Noise, noiseType NoiseType, n int, x, y, z, w, out []float64) {
 	for i := 0; i < n; i++ {
-		point := [4]float64{
-			x[i],
-			0,
-			0,
-			0,
-		}
+		point := [4]float64{x[i], 0, 0, 0}
 		if y != nil && noise.ndim >= 2 {
 			point[1] = y[i]
 		}
@@ -967,24 +899,10 @@ func noiseGetVectorized(
 		}
 	}
 }
-func noiseGetFbmVectorized(
-	noise *Noise,
-	noiseType NoiseType,
-	octaves float64,
-	n int,
-	x []float64,
-	y []float64,
-	z []float64,
-	w []float64,
-	out []float64,
-) {
+
+func noiseGetFbmVectorized(noise *Noise, noiseType NoiseType, octaves float64, n int, x, y, z, w, out []float64) {
 	for i := 0; i < n; i++ {
-		point := [4]float64{
-			x[i],
-			0,
-			0,
-			0,
-		}
+		point := [4]float64{x[i], 0, 0, 0}
 		if y != nil && noise.ndim >= 2 {
 			point[1] = y[i]
 		}
@@ -1006,24 +924,10 @@ func noiseGetFbmVectorized(
 		}
 	}
 }
-func noiseGetTurbulenceVectorized(
-	noise *Noise,
-	noiseType NoiseType,
-	octaves float64,
-	n int,
-	x []float64,
-	y []float64,
-	z []float64,
-	w []float64,
-	out []float64,
-) {
+
+func noiseGetTurbulenceVectorized(noise *Noise, noiseType NoiseType, octaves float64, n int, x, y, z, w, out []float64) {
 	for i := 0; i < n; i++ {
-		point := [4]float64{
-			x[i],
-			0,
-			0,
-			0,
-		}
+		point := [4]float64{x[i], 0, 0, 0}
 		if y != nil && noise.ndim >= 2 {
 			point[1] = y[i]
 		}
