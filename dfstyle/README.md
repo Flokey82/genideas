@@ -14,7 +14,7 @@ This is in really rough shape right now, but I will tidy things up as I go.
 - Add wars and war resolution
 - Add record of history
 
-![alt text](/images/screen.png "Screenshot")
+![alt text](/dfstyle/images/screen.png "Screenshot")
 
 # What is it?
 
