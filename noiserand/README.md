@@ -11,7 +11,7 @@ Well, for example it can be used for procedural generation and if you have found
 To use the `noiserand` package, first import it into your Go code:
 
 ```go
-import "github.com/example/noiserand"
+import "github.com/Flokey82/genideas/noiserand"
 ```
 
 Then, create a new `NoiseRand` object with a random seed and a noise function:
@@ -42,6 +42,8 @@ p := r.Perm(10)
 ## Contributions
 
 We welcome contributions to the noiserand package! If you have ideas for improvements or new features, please feel free to submit a pull request on GitHub. We also appreciate bug reports and feedback on how the package is being used. By working together, we can make the noiserand package even better for everyone. Thank you for your support!
+
+Once this package is in a good state, I will move it to its own repository.
 
 ## License
 
