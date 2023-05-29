@@ -1,0 +1,175 @@
+package gamestrategy
+
+import "image/color"
+
+type Cell struct {
+	X int
+	Y int
+	*Type
+	ControlledBy *Player
+	Features     int64
+}
+
+func (c *Cell) Cost() float64 {
+	return c.Type.Cost
+}
+
+func (c *Cell) Yield() float64 {
+	return resourceYield(c.Features)
+}
+
+func (c *Cell) IsOccupied() bool {
+	return c.ControlledBy != nil
+}
+
+func (c *Cell) Occupy(p *Player) bool {
+	if c.IsOccupied() || p.Gold < c.Cost() {
+		return false
+	}
+	c.ControlledBy = p
+	return true
+}
+
+type Type struct {
+	Name            string  // Water, Meadow, Forest, Mountain, Desert...
+	Cost            float64 // Occupation cost and multiplier for actions
+	AllowedFeatures int64   // Bitmask of allowed features
+	Color           color.Color
+}
+
+var (
+	TypeCapital = Type{
+		Name: "Capital",
+		Cost: 0.0,
+		Color: color.RGBA{
+			R: 0xff,
+			G: 0xff,
+			B: 0xff,
+			A: 0xff,
+		},
+	}
+	TypeWater = Type{
+		Name: "Water",
+		Cost: 5.0,
+		Color: color.RGBA{
+			R: 0x00,
+			G: 0x00,
+			B: 0xff,
+			A: 0xff,
+		},
+	}
+	TypeMeadow = Type{
+		Name:            "Meadow",
+		Cost:            1.0,
+		AllowedFeatures: FeatureFarm | FeatureSettlement,
+		Color: color.RGBA{
+			R: 0x00,
+			G: 0xff,
+			B: 0x00,
+			A: 0xff,
+		},
+	}
+	TypeForest = Type{
+		Name:            "Forest",
+		Cost:            2.0,
+		AllowedFeatures: FeatureLumber,
+		Color: color.RGBA{
+			R: 0x00,
+			G: 0x80,
+			B: 0x00,
+			A: 0xff,
+		},
+	}
+	TypeMountain = Type{
+		Name:            "Mountain",
+		Cost:            3.0,
+		AllowedFeatures: FeatureQuarry | FeatureMine | FeatureSettlement,
+		Color: color.RGBA{
+			R: 0x80,
+			G: 0x80,
+			B: 0x80,
+			A: 0xff,
+		},
+	}
+	TypeDesert = Type{
+		Name: "Desert",
+		Cost: 4.0,
+		Color: color.RGBA{
+			R: 0xff,
+			G: 0xff,
+			B: 0x00,
+			A: 0xff,
+		},
+	}
+)
+
+const (
+	FeatureNone = 0
+	FeatureFarm = 1 << iota
+	FeatureLumber
+	FeatureQuarry
+	FeatureMine
+	FeatureSettlement
+)
+
+func resourceYield(f int64) float64 {
+	var yield float64
+	if f&FeatureFarm != 0 {
+		yield += 2.0
+	}
+	if f&FeatureLumber != 0 {
+		yield += 3.0
+	}
+	if f&FeatureQuarry != 0 {
+		yield += 5.0
+	}
+	if f&FeatureMine != 0 {
+		yield += 5.0
+	}
+	if f&FeatureSettlement != 0 {
+		yield += 2.0
+	}
+	return yield
+}
+
+func costToBuild(f int64) float64 {
+	var cost float64
+	switch f {
+	case FeatureFarm:
+		cost = 1.0
+	case FeatureLumber:
+		cost = 1.0
+	case FeatureQuarry:
+		cost = 4.0
+	case FeatureMine:
+		cost = 4.0
+	case FeatureSettlement:
+		cost = 10.0
+	}
+	return cost
+}
+
+func (t *Type) CostToBuild(f int64) float64 {
+	return t.Cost*costToBuild(f) - resourceYield(f)
+}
+
+func splitFeatures(f int64) []int64 {
+	var features []int64
+	if f&FeatureFarm != 0 {
+		features = append(features, FeatureFarm)
+	}
+	if f&FeatureLumber != 0 {
+		features = append(features, FeatureLumber)
+	}
+	if f&FeatureQuarry != 0 {
+		features = append(features, FeatureQuarry)
+	}
+	if f&FeatureMine != 0 {
+		features = append(features, FeatureMine)
+	}
+	if f&FeatureSettlement != 0 {
+		features = append(features, FeatureSettlement)
+	}
+
+	return features
+}
