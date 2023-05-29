@@ -1,5 +1,7 @@
 # genclutter
 
+NOTE: This is currently just raw WIP, so don't expect anything to work yet :)
+
 The proposed game system is designed to generate believable clutter in buildings for RPGs and other procedurally generated games. It takes into account various factors such as building type, residents, their professions, and required equipment to create a realistic and immersive environment.
 
 To achieve this, the system considers the professions and attributes of individuals residing in a building as well as the type of building. The system maintains a database of professions and associated attributes, such as required equipment, tools, and materials. For example, a carpenter may require a saw, a hammer, nails, and wood in a workshop or shed, while a chef in an inn may require a stove, pots, pans, and ingredients.
@@ -11,3 +13,11 @@ The system generates clutter that is appropriate for each profession and the bui
 Moreover, the system takes into account the occupants' interests and hobbies to generate clutter that is more immersive and realistic. For example, a gardener may have pots, plants, and gardening tools in their room, while a collector may have shelves with various collectibles and books related to their interests.
 
 In summary, the proposed game system generates clutter that is appropriate for each building type, profession, and occupant's interests, creating a realistic and immersive environment for players to explore. The system utilizes a database of professions and associated attributes and uses a graph to identify the required items for each profession to perform their tasks.
+
+## TODO
+
+- [X] Add item variant specific rarity? (basic spellbook, advanced spellbook, etc.)
+- [ ] Add item sets (e.g. stationary, alchemy equipment, etc.)
+- [ ] Add tags to items?
+- [ ] Add item categories/types (e.g. furniture, tools, etc.)
+- [ ] Better registry for new items and building of graph
