@@ -15,6 +15,7 @@ const (
 	Large
 	Huge
 	Gargantuan
+	SizeMax
 )
 
 type Alignment [2]int
@@ -46,6 +47,23 @@ const (
 	TypePlant       MonsterType = "plant"
 )
 
+var MonsterTypes = []MonsterType{
+	TypeAberration,
+	TypeBeast,
+	TypeCelestial,
+	TypeConstruct,
+	TypeDragon,
+	TypeUndead,
+	TypeElemental,
+	TypeFiend,
+	TypeFey,
+	TypeGiant,
+	TypeHumanoid,
+	TypeMonstrosity,
+	TypeOoze,
+	TypePlant,
+}
+
 type AbilityScore int
 
 const (
@@ -56,6 +74,44 @@ const (
 	AbilityWisdom
 	AbilityCharisma
 	AbilityScoreCount
+)
+
+type Sense string
+
+const (
+	SenseBlindsight        Sense = "blindsight"
+	SenseDarkvision        Sense = "darkvision"
+	SenseTremorsense       Sense = "tremorsense"
+	SenseTruesight         Sense = "truesight"
+	SensePassivePerception Sense = "passive perception"
+)
+
+type Skill string
+
+const (
+	// Strength
+	SkillAthletics Skill = "athletics"
+	// Dexterity
+	SkillAcrobatics Skill = "acrobatics"
+	SkillSleight    Skill = "sleight of hand"
+	SkillStealth    Skill = "stealth"
+	// Intelligence
+	SkillArcana   Skill = "arcana"
+	SkillHistory  Skill = "history"
+	SkillInvest   Skill = "investigation"
+	SkillNature   Skill = "nature"
+	SkillReligion Skill = "religion"
+	// Wisdom
+	SkillAnimal     Skill = "animal handling"
+	SkillInsight    Skill = "insight"
+	SkillMedicine   Skill = "medicine"
+	SkillPerception Skill = "perception"
+	SkillSurvival   Skill = "survival"
+	// Charisma
+	SkillDeception   Skill = "deception"
+	SkillIntimidate  Skill = "intimidation"
+	SkillPerformance Skill = "performance"
+	SkillPersuasion  Skill = "persuasion"
 )
 
 type Monster struct {
@@ -72,12 +128,17 @@ type Monster struct {
 	AbilityScores [AbilityScoreCount]int
 	SavingThrows  [AbilityScoreCount]int
 
+	// E.g. Deception +5, Perception +3
+	Skills map[Skill]int
+
+	// E.g. Darkvision 60 ft., passive Perception 13
+	Senses map[Sense]int
+
 	// TODO: Change these to be more structured (like attack, damage, range, etc.)
 	Traits           []string
 	Actions          []string
 	Reactions        []string
 	LegendaryActions []string
-	Senses           []string
 	Languages        []string
 }
 
