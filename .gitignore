@@ -4,3 +4,5 @@ dfstyle/cmd/runner
 gamestrategy/cmd/gamestrategy.gif
 gamestrategy/cmd/runner
 gamestrategy/cmd/test.webp
+gamehex/cmd/runner
+dfstyle/.DS_Store
