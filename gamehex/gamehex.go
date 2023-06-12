@@ -22,6 +22,7 @@ type Game struct {
 	camScaleTo   float64
 	mousePanX    int
 	mousePanY    int
+	sprites      *SpriteSheet
 }
 
 // NewGame returns a new isometric demo Game.
@@ -29,6 +30,10 @@ func NewGame() (*Game, error) {
 	l, err := NewLevel(10, 10)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new level: %s", err)
+	}
+	s, err := LoadSpriteSheet(l.hexRadius)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load spritesheet: %s", err)
 	}
 
 	return &Game{
@@ -38,6 +43,7 @@ func NewGame() (*Game, error) {
 		camScaleTo:   1,
 		mousePanX:    math.MinInt32,
 		mousePanY:    math.MinInt32,
+		sprites:      s,
 	}, nil
 }
 
@@ -146,7 +152,7 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 
 // renderLevel draws the current Level on the screen.
 func (g *Game) renderLevel(screen *ebiten.Image) {
-	// op := &ebiten.DrawImageOptions{}
+	op := &ebiten.DrawImageOptions{}
 	padding := float64(g.currentLevel.hexRadius) * g.camScale
 	cx, cy := 0.0, 0.0 // float64(g.width/2), float64(g.height/2)
 
@@ -199,17 +205,37 @@ func (g *Game) renderLevel(screen *ebiten.Image) {
 				continue
 			}
 
-			/*
-				op.GeoM.Reset()
-				// Move to current isometric position.
-				op.GeoM.Translate(float64(xi), float64(yi))
-				// Translate camera position.
-				op.GeoM.Translate(-g.camX, g.camY)
-				// Zoom.
-				op.GeoM.Scale(scale, scale)
-				// Center.
-				op.GeoM.Translate(cx, cy)
-			*/
+			op.GeoM.Reset()
+			// Move to current isometric position.
+			op.GeoM.Translate(float64(xi), float64(yi))
+			// Translate camera position.
+			op.GeoM.Translate(-g.camX, g.camY)
+			// Translate from center of hexagon.
+			op.GeoM.Translate(-float64(g.currentLevel.hexRadius), -float64(g.currentLevel.hexRadius)*math.Sqrt(3)/2)
+			// Zoom.
+			op.GeoM.Scale(scale, scale)
+			// Center.
+			op.GeoM.Translate(cx, cy)
+
+			// Draw tile.
+			val := g.currentLevel.Tiles[y*g.currentLevel.Width+x]
+
+			// Draw terrain.
+			switch {
+			case val < 20:
+				target.DrawImage(g.sprites.Water, op)
+			case val < 40:
+				target.DrawImage(g.sprites.Dirt, op)
+			case val < 80:
+				target.DrawImage(g.sprites.Grass, op)
+			default:
+				target.DrawImage(g.sprites.Snow, op)
+			}
+
+			// Draw trees above 20 and below 80.
+			if val > 40 && val < 80 {
+				target.DrawImage(g.sprites.Trees, op)
+			}
 
 			g.currentLevel.drawHex(target, (float64(xi)-g.camX+cx)*scale, (float64(yi)+g.camY+cy)*scale, scale, x, y, c)
 		}

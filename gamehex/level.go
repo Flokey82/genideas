@@ -31,8 +31,7 @@ func NewLevel(width, height int) (*Level, error) {
 		for x := 0; x < l.Width; x++ {
 			// Calculate the noise value for the current tile.
 			tx, ty := l.HexTileXYToPixelPos(x, y)
-			noiseValue := noise.Eval2(float64(tx), float64(ty))
-			l.Tiles[y*l.Width+x] = Tile(noiseValue * 255)
+			l.Tiles[y*l.Width+x] = Tile(noise.Eval2(float64(tx), float64(ty)) * 255)
 		}
 	}
 
