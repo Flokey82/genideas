@@ -3,6 +3,8 @@ package gamehex
 
 import (
 	"fmt"
+	"image/color"
+	"math"
 
 	"github.com/hajimehoshi/ebiten"
 )
@@ -12,29 +14,116 @@ type Game struct {
 	width        int
 	height       int
 	offscreen    *ebiten.Image
-	clickedTileX int
-	clickedTileY int
+	clickedTile  [2]int
+	camX         float64
+	camY         float64
+	camScale     float64
+	camScaleTo   float64
+	mousePanX    int
+	mousePanY    int
 }
 
 // NewGame returns a new isometric demo Game.
 func NewGame() (*Game, error) {
-	l, err := NewLevel(32, 32)
+	l, err := NewLevel(10, 10)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new level: %s", err)
 	}
 
 	return &Game{
 		currentLevel: l,
+		clickedTile:  [2]int{-1, -1},
+		camScale:     1,
+		camScaleTo:   1,
+		mousePanX:    math.MinInt32,
+		mousePanY:    math.MinInt32,
 	}, nil
 }
 
 // Update reads current user input and updates the Game state.
 func (g *Game) Update() error {
+	// Update target zoom level.
+	var scrollY float64
+	if ebiten.IsKeyPressed(ebiten.KeyC) || ebiten.IsKeyPressed(ebiten.KeyPageDown) {
+		scrollY = -0.25
+	} else if ebiten.IsKeyPressed(ebiten.KeyE) || ebiten.IsKeyPressed(ebiten.KeyPageUp) {
+		scrollY = 0.25
+	} else {
+		_, scrollY = ebiten.Wheel()
+		if scrollY < -1 {
+			scrollY = -1
+		} else if scrollY > 1 {
+			scrollY = 1
+		}
+	}
+	g.camScaleTo += scrollY * (g.camScaleTo / 7)
+
+	// Clamp target zoom level.
+	if g.camScaleTo < 0.01 {
+		g.camScaleTo = 0.01
+	} else if g.camScaleTo > 100 {
+		g.camScaleTo = 100
+	}
+
+	// Smooth zoom transition.
+	div := 10.0
+	if g.camScaleTo > g.camScale {
+		g.camScale += (g.camScaleTo - g.camScale) / div
+	} else if g.camScaleTo < g.camScale {
+		g.camScale -= (g.camScale - g.camScaleTo) / div
+	}
+
+	// Pan camera via keyboard.
+	pan := 7.0 / g.camScale
+	if ebiten.IsKeyPressed(ebiten.KeyLeft) || ebiten.IsKeyPressed(ebiten.KeyA) {
+		g.camX -= pan
+	}
+	if ebiten.IsKeyPressed(ebiten.KeyRight) || ebiten.IsKeyPressed(ebiten.KeyD) {
+		g.camX += pan
+	}
+	if ebiten.IsKeyPressed(ebiten.KeyDown) || ebiten.IsKeyPressed(ebiten.KeyS) {
+		g.camY -= pan
+	}
+	if ebiten.IsKeyPressed(ebiten.KeyUp) || ebiten.IsKeyPressed(ebiten.KeyW) {
+		g.camY += pan
+	}
+
+	// Pan camera via mouse.
+	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonRight) {
+		if g.mousePanX == math.MinInt32 && g.mousePanY == math.MinInt32 {
+			g.mousePanX, g.mousePanY = ebiten.CursorPosition()
+		} else {
+			x, y := ebiten.CursorPosition()
+			dx, dy := float64(g.mousePanX-x)*(pan/100), float64(g.mousePanY-y)*(pan/100)
+			g.camX, g.camY = g.camX-dx, g.camY+dy
+		}
+	} else if g.mousePanX != math.MinInt32 || g.mousePanY != math.MinInt32 {
+		g.mousePanX, g.mousePanY = math.MinInt32, math.MinInt32
+	}
+
+	// Clamp camera position.
+	// TODO: Fix actual width and height. Clamping is currently inaccurate.
+	worldWidth := float64(g.currentLevel.Width*g.currentLevel.hexRadius) * 1.5
+	worldHeight := float64(g.currentLevel.Height*g.currentLevel.hexRadius) * math.Sqrt(3)
+	if g.camX < 0 {
+		g.camX = 0
+	} else if g.camX > worldWidth {
+		g.camX = worldWidth
+	}
+	if g.camY < -worldHeight {
+		g.camY = -worldHeight
+	} else if g.camY > 0 {
+		g.camY = 0
+	}
+
 	// If we have a mouse click, we calculate the tile we clicked on and store it
 	// for rendering later.
 	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
 		x, y := ebiten.CursorPosition()
-		g.clickedTileX, g.clickedTileY = g.currentLevel.PosToHexTileXY(x, y)
+		x, y = int(float64(x)/g.camScale), int(float64(y)/g.camScale)
+		x, y = x+int(g.camX), y-int(g.camY)
+		cX, cY := g.currentLevel.TileAtPos(x, y)
+		g.clickedTile = [2]int{cX, cY}
 	}
 	return nil
 }
@@ -53,13 +142,80 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 
 // renderLevel draws the current Level on the screen.
 func (g *Game) renderLevel(screen *ebiten.Image) {
+	// op := &ebiten.DrawImageOptions{}
+	padding := float64(g.currentLevel.hexRadius) * g.camScale
+	cx, cy := 0.0, 0.0 // float64(g.width/2), float64(g.height/2)
+
+	scaleLater := g.camScale > 1
+	scale := g.camScale
+	target := screen
+
+	// When zooming in, tiles can have slight bleeding edges.
+	// To avoid them, render the result on an offscreen first and then scale it later.
+	if scaleLater {
+		if g.offscreen != nil {
+			w, h := g.offscreen.Size()
+			sw, sh := screen.Size()
+			if w != sw || h != sh {
+				g.offscreen.Dispose()
+				g.offscreen = nil
+			}
+		}
+		if g.offscreen == nil {
+			g.offscreen = ebiten.NewImage(screen.Size())
+		}
+		target = g.offscreen
+		target.Clear()
+		scale = 1
+	}
+
+	nbOfSelected := make(map[[2]int]bool)
+	if g.clickedTile[0] != -1 && g.clickedTile[1] != -1 {
+		for _, n := range g.currentLevel.getNeighbors(g.clickedTile[0], g.clickedTile[1]) {
+			nbOfSelected[n] = true
+		}
+	}
+
 	for y := 0; y < g.currentLevel.Height; y++ {
 		for x := 0; x < g.currentLevel.Width; x++ {
-			if g.clickedTileX == x && g.clickedTileY == y {
+			// Tint the tile red if it was clicked.
+			var c color.Color
+			if g.clickedTile[0] == x && g.clickedTile[1] == y {
+				c = color.RGBA{255, 0, 0, 255}
+			} else if nbOfSelected[[2]int{x, y}] {
+				c = color.RGBA{0, 255, 0, 255}
+			} else {
+				c = color.White
+			}
+			xi, yi := g.currentLevel.HexTileXYToPixelPos(x, y)
+
+			// Skip drawing tiles that are out of the screen.
+			drawX, drawY := ((float64(xi)-g.camX)*g.camScale)+cx, ((float64(yi)+g.camY)*g.camScale)+cy
+			if drawX+padding < 0 || drawY+padding < 0 || drawX > float64(g.width) || drawY > float64(g.height) {
 				continue
 			}
-			px, py := g.currentLevel.HexTileXYToPixelPos(x, y)
-			g.currentLevel.drawHex(screen, float64(px), float64(py), float64(g.currentLevel.tileSize/2))
+
+			/*
+				op.GeoM.Reset()
+				// Move to current isometric position.
+				op.GeoM.Translate(float64(xi), float64(yi))
+				// Translate camera position.
+				op.GeoM.Translate(-g.camX, g.camY)
+				// Zoom.
+				op.GeoM.Scale(scale, scale)
+				// Center.
+				op.GeoM.Translate(cx, cy)
+			*/
+
+			g.currentLevel.drawHex(target, (float64(xi)-g.camX+cx)*scale, (float64(yi)+g.camY+cy)*scale, scale, x, y, c)
 		}
+	}
+
+	if scaleLater {
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Translate(-cx, -cy)
+		op.GeoM.Scale(float64(g.camScale), float64(g.camScale))
+		op.GeoM.Translate(cx, cy)
+		screen.DrawImage(target, op)
 	}
 }

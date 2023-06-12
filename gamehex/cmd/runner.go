@@ -9,7 +9,7 @@ import (
 
 func main() {
 	ebiten.SetWindowTitle("Hexagonal (Ebitengine Demo)")
-	ebiten.SetWindowSize(640, 480)
+	ebiten.SetWindowSize(500, 600)
 	ebiten.SetWindowResizable(true)
 
 	g, err := gamehex.NewGame()
