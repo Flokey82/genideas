@@ -99,18 +99,10 @@ func (l *Level) TileAtPos(px, py int) (int, int) {
 }
 
 func (l *Level) getNeighbors(x, y int) [][2]int {
-	// Get the neighbors of the given hex tile.
-	var res [][2]int
-	nbs := [][2]int{
-		{x + 1, y},
-		{x - 1, y},
-		{x, y + 1},
-		{x, y - 1},
-		{x + 1, y + 1},
-		{x - 1, y + 1},
-	}
-	// On even rows, we need to use different neighbors.
-	if x%2 == 0 {
+	// Get the neighbors of the given hex tile, depending on the column.
+	// On even columns, we need to use different neighbors than on odd columns.
+	var nbs [][2]int
+	if x%2 == 0 { // even column
 		nbs = [][2]int{
 			{x + 1, y},
 			{x - 1, y},
@@ -119,9 +111,20 @@ func (l *Level) getNeighbors(x, y int) [][2]int {
 			{x + 1, y - 1},
 			{x - 1, y - 1},
 		}
+	} else { // odd column
+		nbs = [][2]int{
+			{x + 1, y},
+			{x - 1, y},
+			{x, y + 1},
+			{x, y - 1},
+			{x + 1, y + 1},
+			{x - 1, y + 1},
+		}
 	}
+
+	// Add the neighbors that are within the bounds of the level.
+	var res [][2]int
 	for _, p := range nbs {
-		// Make sure the tile is within the bounds of the level.
 		if x, y := p[0], p[1]; x >= 0 && x < l.Width && y >= 0 && y < l.Height {
 			res = append(res, [2]int{x, y})
 		}
@@ -132,6 +135,15 @@ func (l *Level) getNeighbors(x, y int) [][2]int {
 func (l *Level) drawHex(background *ebiten.Image, xCenter, yCenter, scale float64, x, y int, c color.Color) {
 	// TODO: Allow drawing operations for translation, rotation and scaling.
 	// Draw the hexagon in flat top version.
+	//
+	//  Flat top version:
+	//            ____
+	//          /      \
+	//    ____ /        \ ____
+	//  /      \        /      \
+	// /        \ ____ /        \
+	// \        /      \        /
+	//  \ ____ /        \ ____ /
 	hr := float64(l.hexRadius) * scale * 0.99
 	points := []vectors.Vec2{
 		{X: xCenter + hr, Y: yCenter},
@@ -142,8 +154,8 @@ func (l *Level) drawHex(background *ebiten.Image, xCenter, yCenter, scale float6
 		{X: xCenter + hr/2, Y: yCenter - math.Sqrt(3)/2*hr},
 	}
 
-	// Calculate gray value from tile value.
-	colGray := uint8(l.Tiles[y*l.Width+x])
+	// Calculate gray value from tile value (minimum is 50% grey, maximum is white)
+	colGray := uint8((int(l.Tiles[y*l.Width+x]) + 255) / 2)
 	c = genColor(c, float64(colGray)/255)
 
 	// Draw the hexagon.

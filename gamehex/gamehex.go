@@ -8,6 +8,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten"
 	"github.com/hajimehoshi/ebiten/ebitenutil"
+	"github.com/hajimehoshi/ebiten/inpututil"
 )
 
 type Game struct {
@@ -82,17 +83,43 @@ func (g *Game) Update() error {
 
 	// Pan camera via keyboard.
 	pan := 7.0 / g.camScale
-	if ebiten.IsKeyPressed(ebiten.KeyLeft) || ebiten.IsKeyPressed(ebiten.KeyA) {
+	if ebiten.IsKeyPressed(ebiten.KeyA) {
 		g.camX -= pan
 	}
-	if ebiten.IsKeyPressed(ebiten.KeyRight) || ebiten.IsKeyPressed(ebiten.KeyD) {
+	if ebiten.IsKeyPressed(ebiten.KeyD) {
 		g.camX += pan
 	}
-	if ebiten.IsKeyPressed(ebiten.KeyDown) || ebiten.IsKeyPressed(ebiten.KeyS) {
+	if ebiten.IsKeyPressed(ebiten.KeyS) {
 		g.camY -= pan
 	}
-	if ebiten.IsKeyPressed(ebiten.KeyUp) || ebiten.IsKeyPressed(ebiten.KeyW) {
+	if ebiten.IsKeyPressed(ebiten.KeyW) {
 		g.camY += pan
+	}
+
+	// Select tiles via keyboard.
+	if inpututil.IsKeyJustPressed(ebiten.KeyLeft) {
+		g.clickedTile[0]--
+		if g.clickedTile[0] < 0 {
+			g.clickedTile[0] = 0
+		}
+	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyRight) {
+		g.clickedTile[0]++
+		if g.clickedTile[0] >= g.currentLevel.Width {
+			g.clickedTile[0] = g.currentLevel.Width - 1
+		}
+	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyDown) {
+		g.clickedTile[1]++
+		if g.clickedTile[1] >= g.currentLevel.Height {
+			g.clickedTile[1] = g.currentLevel.Height - 1
+		}
+	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyUp) {
+		g.clickedTile[1]--
+		if g.clickedTile[1] < 0 {
+			g.clickedTile[1] = 0
+		}
 	}
 
 	// Pan camera via mouse.
