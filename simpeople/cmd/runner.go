@@ -1,22 +1,23 @@
 package main
 
 import (
+	"log"
+
 	"github.com/Flokey82/genideas/simpeople"
 )
 
 func main() {
 	factory := simpeople.NewPeopleFactory()
 	var people []*simpeople.Person
-	for i := 0; i < 40; i++ {
-		p := factory.NewPerson()
-		p.Log()
-		st := p.Personality.Stats()
-		st.Log()
-		people = append(people, p)
+	for i := 0; i < 30; i++ {
+		people = append(people, factory.NewPerson())
 	}
 
 	// Now check if people get along.
 	for _, a := range people {
+		a.Log()
+		st := a.Personality.Stats()
+		st.Log()
 		for _, b := range people {
 			if a == b {
 				continue
@@ -24,9 +25,9 @@ func main() {
 			// Print the plan of A.
 			plan := a.PickAction(b)
 			if plan == nil {
-				println(a.Name, "has no plan for", b.Name)
+				log.Printf("%s has no plan for %s (%d)\n", a.Name, b.Name, a.Compatibility(b))
 			} else {
-				println("!", a.Name, "wants to", plan.Name, b.Name)
+				log.Printf("! %s wants to %s %s (%d)\n", a.Name, plan.Name, b.Name, a.Compatibility(b))
 			}
 		}
 	}

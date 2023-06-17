@@ -11,3 +11,5 @@ Actions might have a certain requirement or threshold to be considered. For exam
 ## TODO
 
 This should use for example a GOAP (Goal Oriented Action Planning) system to decide what to do (any other suitable solution) where actions are weighed additionally based on the personality of the person and the situation. Right now, it's just a hardcoded list of actions. So we should calculate the utility as well as the tendency or desire to do something...
+
+This needs balancing of values and a lot of work.
