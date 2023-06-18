@@ -12,12 +12,6 @@ All credit goes to the original author!
 
 ![alt text](/dfstyle/images/screen.png "Screenshot")
 
-## gamehex
-
-Sample project to demonstrate how to use the Ebiten game engine to create a hexagonal game. This is still a work in progress.
-
-![alt text](/gamehex/images/rgb.png "Hexagonal Game Demo")
-
 ## genshops
 
 genshops is a procedural generator implemented in Golang that enables you to effortlessly create captivating names and catchy slogans for shops and factions in your fantasy setting. With this tool, you can generate random, humorous names and slogans tailored to your preferences, adding a touch of whimsy to your world. At least that how ChatGPT would describe it.
