@@ -24,6 +24,7 @@ type Game struct {
 	mousePanX    int
 	mousePanY    int
 	sprites      *SpriteSheet
+	pathFinder
 }
 
 // NewGame returns a new isometric demo Game.
@@ -45,6 +46,7 @@ func NewGame() (*Game, error) {
 		mousePanX:    math.MinInt32,
 		mousePanY:    math.MinInt32,
 		sprites:      s,
+		pathFinder:   newPathFinder(),
 	}, nil
 }
 
@@ -150,16 +152,23 @@ func (g *Game) Update() error {
 		g.camY = 0
 	}
 
+	// Handle pathfinding input.
+	g.handlePathInput()
+
 	// If we have a mouse click, we calculate the tile we clicked on and store it
 	// for rendering later.
 	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
-		x, y := ebiten.CursorPosition()
-		x, y = int(float64(x)/g.camScale), int(float64(y)/g.camScale)
-		x, y = x+int(g.camX), y-int(g.camY)
-		cX, cY := g.currentLevel.TileAtPos(x, y)
-		g.clickedTile = [2]int{cX, cY}
+		g.clickedTile = g.getTileAtCursor()
 	}
 	return nil
+}
+
+func (g *Game) getTileAtCursor() [2]int {
+	x, y := ebiten.CursorPosition()
+	x, y = int(float64(x)/g.camScale), int(float64(y)/g.camScale)
+	x, y = x+int(g.camX), y-int(g.camY)
+	cX, cY := g.currentLevel.TileAtPos(x, y)
+	return [2]int{cX, cY}
 }
 
 // Draw draws the Game on the screen.
@@ -167,8 +176,11 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	// Render level.
 	g.renderLevel(screen)
 
+	// Render path info.
+	g.drawPathInfo(screen)
+
 	// Print game info.
-	ebitenutil.DebugPrint(screen, fmt.Sprintf("KEYS WASD EC\nFPS  %0.0f\nTPS  %0.0f\nSCA  %0.2f\nPOS  %0.0f,%0.0f", ebiten.ActualFPS(), ebiten.ActualTPS(), g.camScale, g.camX, g.camY))
+	ebitenutil.DebugPrint(screen, fmt.Sprintf("KEYS WASD EC P\nFPS  %0.0f\nTPS  %0.0f\nSCA  %0.2f\nPOS  %0.0f,%0.0f", ebiten.ActualFPS(), ebiten.ActualTPS(), g.camScale, g.camX, g.camY))
 }
 
 // Layout is called when the Game's layout changes.
@@ -213,6 +225,12 @@ func (g *Game) renderLevel(screen *ebiten.Image) {
 		}
 	}
 
+	// Hacky way to check if a tile is part of the path.
+	isPath := make(map[[2]int]bool)
+	for _, p := range g.path {
+		isPath[p] = true
+	}
+
 	for y := 0; y < g.currentLevel.Height; y++ {
 		for x := 0; x < g.currentLevel.Width; x++ {
 			// Tint the tile red if it was clicked.
@@ -244,23 +262,30 @@ func (g *Game) renderLevel(screen *ebiten.Image) {
 			// Center.
 			op.GeoM.Translate(cx, cy)
 
+			// Reset color matrix and tint if needed.
+			op.ColorM.Reset()
+			// Tint if it is part of the path.
+			if isPath[[2]int{x, y}] {
+				op.ColorM.Scale(1, 0.5, 0.5, 1)
+			}
+
 			// Draw tile.
 			val := g.currentLevel.Tiles[y*g.currentLevel.Width+x]
 
 			// Draw terrain.
-			switch {
-			case val < 20:
+			switch val.Type() {
+			case TileTypeWater:
 				target.DrawImage(g.sprites.Water, op)
-			case val < 40:
+			case TileTypeDirt:
 				target.DrawImage(g.sprites.Dirt, op)
-			case val < 80:
+			case TileTypeGrass:
 				target.DrawImage(g.sprites.Grass, op)
 			default:
 				target.DrawImage(g.sprites.Snow, op)
 			}
 
-			// Draw trees above 20 and below 80.
-			if val > 40 && val < 80 {
+			// Draw trees if present.
+			if val.HasTrees() {
 				target.DrawImage(g.sprites.Trees, op)
 			}
 

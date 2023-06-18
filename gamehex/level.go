@@ -178,3 +178,31 @@ func genColor(baseColor color.Color, intensity float64) color.Color {
 }
 
 type Tile byte
+
+// TileType represents the type of a tile.
+type TileType int
+
+const (
+	TileTypeGrass TileType = iota
+	TileTypeDirt
+	TileTypeWater
+	TileTypeSnow
+	TileTypeTrees
+)
+
+func (t Tile) Type() TileType {
+	switch {
+	case t < 20:
+		return TileTypeWater
+	case t < 40:
+		return TileTypeDirt
+	case t < 80:
+		return TileTypeGrass
+	default:
+		return TileTypeSnow
+	}
+}
+
+func (t Tile) HasTrees() bool {
+	return t > 40 && t < 80
+}
