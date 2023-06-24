@@ -12,6 +12,12 @@ All credit goes to the original author!
 
 ![alt text](/dfstyle/images/screen.png "Screenshot")
 
+## gametiles
+
+Tile based game example thingy (very rudimentary).
+
+![alt text](/gametiles/images/rgb.png "Screenshot")
+
 ## genpetscii
 
 This is an experiment in drawing a map using an extended PETSCII character set. This is still a work in progress.
