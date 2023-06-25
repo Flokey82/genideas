@@ -11,7 +11,7 @@ All glory goes to the original author of the tileset: garrick https://opengamear
 ## TODO
 
 - [ ] More flexible tileset
-- [ ] Fix scrolling / panning of the map
+- [X] Fix scrolling / panning of the map
 - [ ] Interactivity
     - [ ] Select / click on a tile
     - [ ] Pathfinding

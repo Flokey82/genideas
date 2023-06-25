@@ -8,10 +8,9 @@ import (
 )
 
 func main() {
-	g := gametiles.NewGame()
-
-	ebiten.SetWindowSize(gametiles.ScreenWidth*2, gametiles.ScreenHeight*2)
+	ebiten.SetWindowSize(gametiles.ScreenWidth, gametiles.ScreenHeight)
 	ebiten.SetWindowTitle("Tiles (Ebitengine Demo)")
+	g := gametiles.NewGame(25, 25)
 	if err := ebiten.RunGame(g); err != nil {
 		log.Fatal(err)
 	}

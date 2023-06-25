@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	ScreenWidth  = 240
-	ScreenHeight = 240
+	ScreenWidth  = 480
+	ScreenHeight = 480
 	tileSize     = 16
 )
 
@@ -97,17 +97,17 @@ func (g *Game) Update() error {
 
 	// Clamp camera position.
 	// TODO: Fix camera clamping when zoomed in.
-	worldWidth := float64(g.levelWidth*tileSize/2) * g.camScale
-	worldHeight := float64(g.levelHeight*tileSize/2) * g.camScale
-	if g.camX < -worldWidth {
-		g.camX = -worldWidth
+	worldWidth := float64(g.levelWidth * tileSize)
+	worldHeight := float64(g.levelHeight * tileSize)
+	if g.camX < 0 {
+		g.camX = 0
 	} else if g.camX > worldWidth {
 		g.camX = worldWidth
 	}
 	if g.camY < -worldHeight {
 		g.camY = -worldHeight
-	} else if g.camY > worldHeight {
-		g.camY = worldHeight
+	} else if g.camY > 0 {
+		g.camY = 0
 	}
 
 	// If we click, print the tile we clicked on.
@@ -152,7 +152,7 @@ func worldToTile(x, y int) (int, int) {
 func (g *Game) Draw(screen *ebiten.Image) {
 	op := &ebiten.DrawImageOptions{}
 	padding := float64(tileSize) * g.camScale
-	cx, cy := 0.0, 0.0 //float64(g.width/2), float64(g.height/2)
+	cx, cy := float64(g.width/2), float64(g.height/2)
 
 	scaleLater := g.camScale > 1
 	target := screen
@@ -243,16 +243,15 @@ func (g *Game) Draw(screen *ebiten.Image) {
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 	g.width = outsideWidth
 	g.height = outsideHeight
-	return ScreenWidth, ScreenHeight
+	return g.width, g.height
 }
 
-func NewGame() *Game {
+func NewGame(lvlWidth, lvlHeight int) *Game {
+	// Load sprites and convert them from 32x32 to 16x16.
 	s, err := LoadSpriteSheet(32, tileSize)
 	if err != nil {
 		log.Fatal(err)
 	}
-	lvlHeight := 25
-	lvlWidth := 25
 	l, err := NewLevel(lvlWidth, lvlHeight)
 	if err != nil {
 		log.Fatal(err)
@@ -261,6 +260,8 @@ func NewGame() *Game {
 		currentLevel: l,
 		levelWidth:   lvlWidth,
 		levelHeight:  lvlHeight,
+		camX:         float64(lvlWidth) * tileSize / 2,
+		camY:         -float64(lvlHeight) * tileSize / 2,
 		camScale:     1,
 		camScaleTo:   1,
 		mousePanX:    math.MinInt32,
