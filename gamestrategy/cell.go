@@ -3,8 +3,9 @@ package gamestrategy
 import "image/color"
 
 type Cell struct {
-	X int
-	Y int
+	X     int
+	Y     int
+	Value float64
 	*Type
 	ControlledBy *Player
 	Features     int64

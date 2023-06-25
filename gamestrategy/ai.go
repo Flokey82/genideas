@@ -2,6 +2,7 @@ package gamestrategy
 
 import (
 	"log"
+	"math"
 	"math/rand"
 	"sort"
 )
@@ -39,7 +40,7 @@ func (a *AI) Act() {
 				for _, f := range splitFeatures(c.AllowedFeatures &^ c.Features) {
 					possibleActions = append(possibleActions, Task{
 						Action:  ActionBuild,
-						Cell:    c,
+						At:      c,
 						Feature: f,
 					})
 				}
@@ -51,13 +52,15 @@ func (a *AI) Act() {
 					// We can expand here
 					possibleActions = append(possibleActions, Task{
 						Action: ActionExpand,
-						Cell:   n,
+						From:   c,
+						At:     n,
 					})
 				} else if n.ControlledBy != a.Player {
 					// We can attack here
 					possibleActions = append(possibleActions, Task{
 						Action: ActionAttack,
-						Cell:   n,
+						From:   c,
+						At:     n,
 					})
 				}
 			}
@@ -69,8 +72,10 @@ func (a *AI) Act() {
 		possibleActions[i], possibleActions[j] = possibleActions[j], possibleActions[i]
 	})
 
-	// Evaluate all possible actions and pick the best one
+	// Evaluate all possible actions and pick the best one.
 	// Sort by cost
+	// TODO: Calculate utility instead by calculating the resources yield before and after the action,
+	// the before and after per-turn cell cost, and the cost of the action.
 	sort.Slice(possibleActions, func(i, j int) bool {
 		return possibleActions[i].Cost() < possibleActions[j].Cost()
 	})
@@ -78,7 +83,7 @@ func (a *AI) Act() {
 	// Pick the first one
 	if len(possibleActions) > 0 {
 		for _, ac := range possibleActions {
-			log.Printf("AI %s possible action %s on %d,%d for %f", a.Name, ac.Action, ac.Cell.X, ac.Cell.Y, ac.Cost())
+			log.Printf("AI %s possible action %s on %d,%d for %f", a.Name, ac.Action, ac.At.X, ac.At.Y, ac.Cost())
 		}
 		if possibleActions[0].Cost() > a.Gold {
 			// We can't afford this action
@@ -91,11 +96,11 @@ func (a *AI) Act() {
 func (a *AI) Do(t Task) {
 	switch t.Action {
 	case ActionBuild:
-		a.Build(t.Cell)
+		a.Build(t.At)
 	case ActionExpand:
-		a.Expand(t.Cell)
+		a.Expand(t.At)
 	case ActionAttack:
-		a.Attack(t.Cell)
+		a.Attack(t.At)
 	}
 }
 
@@ -130,19 +135,37 @@ func (a *AI) Attack(c *Cell) {
 }
 
 type Task struct {
-	Action  string
-	Cell    *Cell
-	Feature int64
+	Action  string // build, expand, attack
+	From    *Cell  // From which cell to initiate the action
+	At      *Cell  // In which cell to do the action
+	Feature int64  // Which feature to build
 }
 
+// HeightDiff returns the height difference between the from and at cells.
+func (t *Task) HeightDiff() float64 {
+	if t.From != nil && t.At != nil {
+		return t.At.Value - t.From.Value
+	}
+	return 0.0
+}
+
+// Cost returns the cost of the task.
 func (t *Task) Cost() float64 {
 	switch t.Action {
 	case ActionBuild:
-		return t.Cell.Type.CostToBuild(t.Feature)
+		return t.At.Type.CostToBuild(t.Feature)
 	case ActionExpand:
-		return t.Cell.Type.Cost
+		// Account for elevation difference as extra cost.
+		// Expanding is preferred on the same elevation
+		extra := math.Abs(t.HeightDiff())
+		return t.At.Type.Cost + extra
 	case ActionAttack:
-		return t.Cell.Type.Cost * 2.0
+		// Account for elevation difference as extra cost (positive or negative)
+		// Attacking lower ground is cheaper, higher ground is more expensive.
+		// NOTE: This is part of military strategy though, so should this knowledge be available to the AI
+		// by default?
+		extra := t.HeightDiff()
+		return t.At.Type.Cost*2.0 + extra
 	}
 	return 0.0
 }

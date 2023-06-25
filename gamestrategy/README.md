@@ -11,13 +11,20 @@ Welcome to the medieval strategy game where you can experience the growth and co
 1. Game Setup:
    - Each player represents a kingdom and starts with a single territory.
    - The game is played on a grid divided into different cell types, such as meadows, forests, mountains, rivers, deserts, and coastal areas.
+   - Each cell type has a cost associated with occupying and maintaining control over it.
+   - Players can
+      - ... expand their territories by occupying neighboring cells.     
+      - ... only see the cell types of their own territories and the neighboring cells.
+      - ... develop their territories by building and upgrading structures, such as farms, mines, barracks, walls, and markets which will provide various benefits like reduced costs, increased resource production, or improved defense.
+      - ... recruit and train troops in their territories.
+      - ... spend one turn and resources to explore ruins for a chance to find valuable artifacts.
 
 2. Turn-based Gameplay:
    - The game progresses in turns, with each player taking actions one after another.
    - Players can perform a limited number of actions during their turn.
 
 3. Actions:
-   - Expanding Territories: Players can choose to attack neighboring territories to expand their kingdom. The success of an attack can depend on factors such as troop strength and terrain advantages.
+   - Expanding Territories: Players can choose to attack or occupy neighboring territories to expand their kingdom. The success of an attack can depend on factors such as troop strength and terrain advantages.
    - Building and Upgrading: Players can use resources to construct buildings, such as farms, mines, barracks, walls, and markets, in their territories. Upgrading buildings can provide additional benefits, such as increased resource production or improved defense.
    - Resource Management: Players need to manage their resources effectively to sustain their kingdom and support their troops. Resources can be obtained from controlled territories or through trade with other players.
    - Diplomacy and Alliances: Players can negotiate with each other, form alliances, or engage in diplomacy. Alliances can provide mutual defense or trade benefits.
@@ -50,3 +57,6 @@ By considering the costs and benefits associated with different cell types, play
    - [ ] Improve game balance
 - [X] Add webp animation export
 - [ ] Add a simple GUI
+
+https://www.gamedeveloper.com/design/designing-ai-algorithms-for-turn-based-strategy-games
+https://catlikecoding.com/unity/tutorials/hex-map/

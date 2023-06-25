@@ -32,6 +32,7 @@ func NewGrid(width, height int) *Grid {
 			val := noise.Eval2(float64(x)*2/float64(width), float64(y)*2/float64(height)) * 0.5
 			val += noise.Eval2(float64(x)*4/float64(width), float64(y)*4/float64(height)) * 0.25
 			val += noise.Eval2(float64(x)*8/float64(width), float64(y)*8/float64(height)) * 0.25
+			c.Value = val
 			if val < 0.2 {
 				c.Type = &TypeWater
 			} else if val < 0.4 {
