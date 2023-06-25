@@ -2,6 +2,8 @@
 
 This is an experiment to create a simple (for now, zero-player) strategy game in order to experiment with different game mechanics and AI. Currently, this is just really bare bones and doesn't do much, but it's a start.
 
+![alt text](/gamestrategy/images/expansion.webp "Screenshot")
+
 ## Game Mechanics
 
 Here is the elevator pitch that ChatGPT came up with after much discussion and arguments:
