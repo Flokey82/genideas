@@ -30,6 +30,8 @@ func (w *World) NewPerson(name string) *Person {
 		Motives: []*Motive{
 			MotiveTypeSleep.New(),
 			MotiveTypeFood.New(),
+			MotiveTypeBladder.New(),
+			MotiveHygiene.New(),
 			MotiveTypeFun.New(),
 		},
 		w: w,
@@ -38,6 +40,15 @@ func (w *World) NewPerson(name string) *Person {
 			Y: rand.Float64() * 50,
 		},
 	}
+}
+
+// Happiness returns the happiness of the person.
+func (p *Person) Happiness() float64 {
+	var sum float64
+	for _, m := range p.Motives {
+		sum += m.Val
+	}
+	return sum / float64(len(p.Motives))
 }
 
 // Tick ticks the person.
@@ -56,22 +67,34 @@ func (p *Person) Tick() {
 
 	// Calculate the priority of each action by multiplying the effect
 	// of the action with the current multiplier of the motive.
-	actions := make([]*actionRank, 0)
+	var actions []*actionRank
 	for _, o := range p.w.Objects {
 		for _, a := range o.Actions {
 			// MaxEffect is the maximum effect of the action taking into accoount the
 			// difference between the current value of the motive and the max value which
 			// limits the effect of the action.
-			maxEffect := math.Min(a.Effect, missingToMax[a.Motive])
+			maxEffect := math.Min(a.Effect.Effect, missingToMax[a.Effect.Motive])
+
+			// Priority is the effect of the action multiplied by the current multiplier
+			// of the motive.
+			priority := maxEffect * multipliers[a.Effect.Motive]
+
+			// TODO: Also take distance into account.
+			priority -= p.Position.DistanceTo(o.Position)
 
 			r := &actionRank{
 				Action:   a,
 				Object:   o,
-				Priority: maxEffect * multipliers[a.Motive],
+				Priority: priority,
 			}
 			r.Log()
 			actions = append(actions, r)
 		}
+	}
+
+	// Check if we have any actions.
+	if len(actions) == 0 {
+		return
 	}
 
 	// Sort the actions by priority.
@@ -93,7 +116,7 @@ func (p *Person) Tick() {
 	p.PerformAction()
 }
 
-const walkSpeed = 10.0 // How far the person can walk per tick
+const walkSpeed = 15.0 // How far the person can walk per tick
 
 // PerformAction performs the current action.
 func (p *Person) PerformAction() {
@@ -119,13 +142,26 @@ func (p *Person) PerformAction() {
 
 	// We have reached the destination, perform the action.
 	log.Printf("%s: performing %s", p.Name, p.Action.Name)
-	findMotive := p.Action.Motive
+
+	// Apply primary motive change.
+	p.ApplyEffect(p.Action.Effect)
+
+	// Apply secondary motive change.
+	p.ApplyEffect(p.Action.SideEffect)
+
+	// Reset the action.
+	p.Action = nil
+	p.Destination = nil
+}
+
+// ApplyEffect applies the effect to the person.
+func (p *Person) ApplyEffect(e *Effect) {
+	if e == nil {
+		return
+	}
 	for _, m := range p.Motives {
-		if m.Type == findMotive {
-			m.Change(p.Action.Effect)
-			// We have performed the action, reset the action.
-			p.Action = nil
-			p.Destination = nil
+		if m.Type == e.Motive {
+			m.Change(e.Effect)
 			break
 		}
 	}
@@ -133,7 +169,8 @@ func (p *Person) PerformAction() {
 
 // Log logs the current state of the person.
 func (p *Person) Log() {
-	log.Printf("%s: %.2f %.2f", p.Name, p.Position.X, p.Position.Y)
+	log.Printf("%s: %.2f %.2f (Happiness: %.2f)", p.Name, p.Position.X, p.Position.Y, p.Happiness())
+	log.Println("Motive values:")
 	for _, m := range p.Motives {
 		m.Log()
 	}

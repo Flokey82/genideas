@@ -40,11 +40,23 @@ func main() {
 	})
 	w.Objects = append(w.Objects, fridge)
 
-	tv := simpeople2.ObjectTypeTV.New(vectors.Vec2{
+	tv := simpeople2.ObjectTypeCouch.New(vectors.Vec2{
 		X: rand.Float64() * 50,
 		Y: rand.Float64() * 50,
 	})
 	w.Objects = append(w.Objects, tv)
+
+	toilet := simpeople2.ObjectTypeToilet.New(vectors.Vec2{
+		X: rand.Float64() * 50,
+		Y: rand.Float64() * 50,
+	})
+	w.Objects = append(w.Objects, toilet)
+
+	shower := simpeople2.ObjectTypeShower.New(vectors.Vec2{
+		X: rand.Float64() * 50,
+		Y: rand.Float64() * 50,
+	})
+	w.Objects = append(w.Objects, shower)
 
 	// Add some people.
 	p1 := w.NewPerson("Person 1")
@@ -54,7 +66,7 @@ func main() {
 	//w.People = append(w.People, p2)
 
 	// Tick the world.
-	for i := 0; i < 20; i++ {
+	for i := 0; i < 40; i++ {
 		w.Tick()
 	}
 }

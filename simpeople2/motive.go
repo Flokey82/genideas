@@ -10,13 +10,21 @@ var MotiveTypeSleep = &MotiveType{
 	Name:  "Sleep",
 	Curve: CurveTypeExponential,
 	Decay: 10.0,
+	OnMax: func() {},
+	OnMin: func() {
+		log.Println("Person is very tired!")
+	},
 }
 
 // MotiveTypeFood is the motive for food.
 var MotiveTypeFood = &MotiveType{
 	Name:  "Food",
-	Curve: CurveTypeExponential,
+	Curve: CurveTypeSigmoid,
 	Decay: 15.0,
+	OnMax: func() {},
+	OnMin: func() {
+		log.Println("Person is starving to death!")
+	},
 }
 
 // MotiveTypeFun is the motive for fun stuff.
@@ -24,6 +32,34 @@ var MotiveTypeFun = &MotiveType{
 	Name:  "Fun",
 	Curve: CurveTypeParabola,
 	Decay: 5.0,
+	OnMax: func() {},
+	OnMin: func() {
+		log.Println("Person is very bored!")
+	},
+}
+
+// MotiveTypeBladder is the motive for bladder.
+// TODO: If bladder is too high, the person should pee themselves,
+// which should decay hygiene but restore bladder.
+var MotiveTypeBladder = &MotiveType{
+	Name:  "Bladder",
+	Curve: CurveTypeExponential,
+	Decay: 15.0,
+	OnMax: func() {},
+	OnMin: func() {
+		log.Println("Person is about to pee themselves!")
+	},
+}
+
+// MotiveHygiene is the motive for hygiene.
+var MotiveHygiene = &MotiveType{
+	Name:  "Hygiene",
+	Curve: CurveTypeExponential,
+	Decay: 10.0,
+	OnMax: func() {},
+	OnMin: func() {
+		log.Println("Person is very stinky!")
+	},
 }
 
 // MotiveType is a motive for a person.
@@ -31,6 +67,8 @@ type MotiveType struct {
 	Name  string
 	Curve CurveType // How the muliplier changes based on the current value
 	Decay float64   // How much the value decays per tick
+	OnMax func()    // Called when the motive reaches the maximum value
+	OnMin func()    // Called when the motive reaches the minimum value
 }
 
 // New creates a new motive.
@@ -55,6 +93,11 @@ type Motive struct {
 // Tick decays the motive value.
 func (m *Motive) Tick() {
 	m.Change(-m.Type.Decay)
+	if m.Val >= maxMotiveValue {
+		m.Type.OnMax()
+	} else if m.Val <= minMotiveValue {
+		m.Type.OnMin()
+	}
 }
 
 // Change changes the motive value by the given amount.
@@ -88,7 +131,6 @@ type CurveType int
 const (
 	CurveTypeLinear CurveType = iota
 	CurveTypeExponential
-	CurveTypeLogarithmic
 	CurveTypeSigmoid
 	CurveTypeParabola
 )
@@ -98,17 +140,29 @@ const (
 func (c CurveType) Multiplier(val float64) float64 {
 	// Scale the value to be between 1 and 0 (if the original value is -100, the scaled value is 1)
 	val = 1 - (val+100)/200
+	var mul float64
 	switch c {
 	case CurveTypeLinear:
-		return val * 10
+		// 1
+		// |  /
+		// 0 /  1
+		mul = val
 	case CurveTypeExponential:
-		return val * val * 10
-	case CurveTypeLogarithmic:
-		return -2 * 10 * math.Log(val)
+		// 1
+		// |   /
+		// 0 -  1
+		mul = val * val
 	case CurveTypeSigmoid:
-		return 10 / (1 + 9*math.Exp(-val))
+		// Proper sigmoid function: 1 / (1 + e^-x)
+		// 1     -
+		// |   /
+		// 0 -    1
+		mul = 1 / (1 + math.Pow(math.E, -8*val+4))
 	case CurveTypeParabola:
-		return 4*val*val - 4*val + 1
+		// 1
+		// | \   /
+		// 0   -  1
+		mul = 4*val*val - 4*val + 1
 	}
-	return 0
+	return mul * 10
 }

@@ -18,11 +18,28 @@ var ObjectTypeBed = &ObjectType{
 	},
 }
 
-// ObjectTypeTV is the object type of a TV.
-var ObjectTypeTV = &ObjectType{
-	Name: "TV",
+// ObjectTypeCouch is the object type of a couch.
+var ObjectTypeCouch = &ObjectType{
+	Name: "Couch",
 	Actions: []*Action{
 		ActionWatchTV,
+		ActionSleep,
+	},
+}
+
+// ObjectTypeToilet is the object type of a toilet.
+var ObjectTypeToilet = &ObjectType{
+	Name: "Toilet",
+	Actions: []*Action{
+		ActionPee,
+	},
+}
+
+// ObjectTypeShower is the object type of a shower.
+var ObjectTypeShower = &ObjectType{
+	Name: "Shower",
+	Actions: []*Action{
+		ActionShower,
 	},
 }
 
@@ -48,28 +65,70 @@ type Object struct {
 
 // Action is an action that can be performed on an object.
 type Action struct {
-	Name   string      // The name of the action
+	Name       string  // The name of the action
+	Effect     *Effect // Primary effect of the action
+	SideEffect *Effect // Secondary effect of the action
+}
+
+// Effect is the effect of an action.
+type Effect struct {
 	Motive *MotiveType // The motive that is affected by the action
 	Effect float64     // How much the motive changes when the action is performed
 }
 
 // ActionEat is the action of eating.
 var ActionEat = &Action{
-	Name:   "Eat",
-	Motive: MotiveTypeFood,
-	Effect: 30.0,
+	Name: "Eat",
+	Effect: &Effect{
+		Motive: MotiveTypeFood,
+		Effect: 100.0,
+	},
+	SideEffect: &Effect{
+		Motive: MotiveTypeBladder,
+		Effect: -50.0,
+	},
 }
 
 // ActionSleep is the action of sleeping.
 var ActionSleep = &Action{
-	Name:   "Sleep",
-	Motive: MotiveTypeSleep,
-	Effect: 30.0,
+	Name: "Sleep",
+	Effect: &Effect{
+		Motive: MotiveTypeSleep,
+		Effect: 100.0,
+	},
+	SideEffect: &Effect{ // Sleeping makes you less hungry.
+		Motive: MotiveTypeFood,
+		Effect: -5.0,
+	},
 }
 
 // ActionWatchTV is the action of watching TV.
 var ActionWatchTV = &Action{
-	Name:   "Watch TV",
-	Motive: MotiveTypeFun,
-	Effect: 30.0,
+	Name: "Watch TV",
+	Effect: &Effect{
+		Motive: MotiveTypeFun,
+		Effect: 60.0,
+	},
+}
+
+// ActionPee is the action of peeing.
+var ActionPee = &Action{
+	Name: "Pee",
+	Effect: &Effect{
+		Motive: MotiveTypeBladder,
+		Effect: 100.0,
+	},
+}
+
+// ActionShower is the action of showering.
+var ActionShower = &Action{
+	Name: "Shower",
+	Effect: &Effect{
+		Motive: MotiveHygiene,
+		Effect: 100.0,
+	},
+	SideEffect: &Effect{
+		Motive: MotiveTypeBladder,
+		Effect: -10.0,
+	},
 }

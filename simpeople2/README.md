@@ -2,6 +2,11 @@
 
 This package implements a sims-like simulation of people interacting with the world and each other.
 
+NOTE: This implementation is loosely based on 
+The Genius AI Behind The Sims - Game Maker's Toolkit
+https://www.youtube.com/watch?v=9gf2MT-IOsg
+
+
 ## How does it work?
 
 Like the original sims, the people have a set of needs (motives) that they try to satisfy. Each motive is represented as a number between -100 and 100 and have each a rate of decay, depending on what they represent. For example, sleep should require us to go to bed every 16 hours for 8 hours or so. 
@@ -21,21 +26,32 @@ In the Sims, objects within the world space advertise their utility for certain 
 
 ## Step by step implementation
 
-- [ ] Create motive type
-    - [ ] Decay
-    - [ ] Multiplier
-        - [ ] Curves (linear, exponential, logarithmic, etc) for multipliers
-    - [ ] Implement two basic motives
-        - [ ] Food
-        - [ ] Sleep
-- [ ] Create a person
+- [X] Create motive type
+    - [X] Decay
+        - [ ] Move from ticks to delta time
+    - [X] Multiplier
+        - [X] Curves (linear, exponential, logarithmic, etc) for multipliers
+        - [ ] Curve modifiers (steepness, etc)
+    - [X] Implement two basic motives
+        - [X] Food
+        - [X] Sleep
+        - [X] Bladder
+        - [X] Hygiene
+        - [ ] Social
+        - [X] Fun
+- [X] Create a person
     - [ ] Movement and pathfinding
-    - [ ] Add a list of motives
-    - [ ] Implement a basic action
-        - [ ] Eat
-        - [ ] Sleep
-    - [ ] Implement a basic action selection
-        - [ ] ... based on utility
+    - [X] Add a list of motives
+    - [X] Implement a basic action
+        - [X] Eat
+        - [X] Sleep
+        - [X] Pee
+        - [X] Shower
+        - [X] Watch TV
+        - [ ] Socialize
+    - [X] Implement a basic action selection
+        - [X] ... based on utility
+        - [ ] ... with weighted randomization
     - [ ] Create personality type
         - [ ] Implement modifiers for traits
         - [ ] Implement a basic trait
@@ -43,11 +59,15 @@ In the Sims, objects within the world space advertise their utility for certain 
             - [ ] Slob
     - [ ] Implement a basic action selection (continued)
         - [ ] ... based on utility and personality
-    - [ ] Implement execution of action
-        - [ ] Actions should be interruptible
+    - [X] Implement execution of action
+        - [-] Actions should be interruptible
         - [ ] Actions should have a duration
-- [ ] Create object types
-    - [ ] Advertise utility for motives
-    - [ ] Implement a bed
-    - [ ] Implement a fridge
-    - [ ] Implement a toilet
+- [X] Create object types
+    - [X] Advertise utility for motives
+    - [X] Implement a bed
+    - [X] Implement a fridge
+    - [X] Implement a toilet
+    - [X] Implement a shower
+    - [ ] Implement a couch
+- [ ] Export to webp animation
+- [ ] Tweak values!
