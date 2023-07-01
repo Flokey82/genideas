@@ -11,3 +11,5 @@ gamehex/.DS_Store
 simpeople/cmd/runner
 genpetscii/genpetscii
 gametiles/cmd/runner
+gametiles/.DS_Store
+simpeople2/cmd/runner
