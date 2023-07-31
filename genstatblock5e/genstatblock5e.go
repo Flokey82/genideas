@@ -6,114 +6,6 @@ import (
 	"time"
 )
 
-type Size int
-
-const (
-	Tiny Size = iota
-	Small
-	Medium
-	Large
-	Huge
-	Gargantuan
-	SizeMax
-)
-
-type Alignment [2]int
-
-const (
-	AlignChaotic = iota
-	AlignNeutral
-	AlignLawful
-	AlignGood
-	AlignEvil
-)
-
-type MonsterType string
-
-const (
-	TypeAberration  MonsterType = "aberration"
-	TypeBeast       MonsterType = "beast"
-	TypeCelestial   MonsterType = "celestial"
-	TypeConstruct   MonsterType = "construct"
-	TypeDragon      MonsterType = "dragon"
-	TypeUndead      MonsterType = "undead"
-	TypeElemental   MonsterType = "elemental"
-	TypeFiend       MonsterType = "fiend"
-	TypeFey         MonsterType = "fey"
-	TypeGiant       MonsterType = "giant"
-	TypeHumanoid    MonsterType = "humanoid"
-	TypeMonstrosity MonsterType = "monstrosity"
-	TypeOoze        MonsterType = "ooze"
-	TypePlant       MonsterType = "plant"
-)
-
-var MonsterTypes = []MonsterType{
-	TypeAberration,
-	TypeBeast,
-	TypeCelestial,
-	TypeConstruct,
-	TypeDragon,
-	TypeUndead,
-	TypeElemental,
-	TypeFiend,
-	TypeFey,
-	TypeGiant,
-	TypeHumanoid,
-	TypeMonstrosity,
-	TypeOoze,
-	TypePlant,
-}
-
-type AbilityScore int
-
-const (
-	AbilityStrength AbilityScore = iota
-	AbilityDexterity
-	AbilityConstitution
-	AbilityIntelligence
-	AbilityWisdom
-	AbilityCharisma
-	AbilityScoreCount
-)
-
-type Sense string
-
-const (
-	SenseBlindsight        Sense = "blindsight"
-	SenseDarkvision        Sense = "darkvision"
-	SenseTremorsense       Sense = "tremorsense"
-	SenseTruesight         Sense = "truesight"
-	SensePassivePerception Sense = "passive perception"
-)
-
-type Skill string
-
-const (
-	// Strength
-	SkillAthletics Skill = "athletics"
-	// Dexterity
-	SkillAcrobatics Skill = "acrobatics"
-	SkillSleight    Skill = "sleight of hand"
-	SkillStealth    Skill = "stealth"
-	// Intelligence
-	SkillArcana   Skill = "arcana"
-	SkillHistory  Skill = "history"
-	SkillInvest   Skill = "investigation"
-	SkillNature   Skill = "nature"
-	SkillReligion Skill = "religion"
-	// Wisdom
-	SkillAnimal     Skill = "animal handling"
-	SkillInsight    Skill = "insight"
-	SkillMedicine   Skill = "medicine"
-	SkillPerception Skill = "perception"
-	SkillSurvival   Skill = "survival"
-	// Charisma
-	SkillDeception   Skill = "deception"
-	SkillIntimidate  Skill = "intimidation"
-	SkillPerformance Skill = "performance"
-	SkillPersuasion  Skill = "persuasion"
-)
-
 type Monster struct {
 	Name          string
 	Description   string
@@ -131,6 +23,11 @@ type Monster struct {
 	// E.g. Deception +5, Perception +3
 	Skills map[Skill]int
 
+	// E.g. Damage Resistances bludgeoning, piercing, and slashing from nonmagical attacks
+	Resistances     []DamageType
+	Immunities      []DamageType
+	Vulnerabilities []DamageType
+
 	// E.g. Darkvision 60 ft., passive Perception 13
 	Senses map[Sense]int
 
@@ -139,7 +36,7 @@ type Monster struct {
 	Actions          []string
 	Reactions        []string
 	LegendaryActions []string
-	Languages        []string
+	Languages        []Language
 }
 
 // GenerateAttributes randomly generates a set of attributes for a character.

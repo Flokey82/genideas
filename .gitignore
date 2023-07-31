@@ -13,3 +13,4 @@ genpetscii/genpetscii
 gametiles/cmd/runner
 gametiles/.DS_Store
 simpeople2/cmd/runner
+genstatblock5e/cmd/runner
