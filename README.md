@@ -12,6 +12,12 @@ All credit goes to the original author!
 
 ![alt text](/dfstyle/images/screen.png "Screenshot")
 
+## gameoverworld
+
+This is an experimental project experimenting with experimental ideas. It's a game, it's a world, it's a gameoverworld. :P
+
+![alt text](/gameoverworld/images/screen.png "Screenshot")
+
 ## gamestrategy
 
 This is an experiment to create a simple (for now, zero-player) strategy game in order to experiment with different game mechanics and AI. Currently, this is just really bare bones and doesn't do much, but it's a start.

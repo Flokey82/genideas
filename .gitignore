@@ -16,3 +16,4 @@ simpeople2/cmd/runner
 genstatblock5e/cmd/runner
 .DS_Store
 gametiles/.DS_Store
+gameoverworld/cmd/runner
