@@ -33,7 +33,7 @@ func LoadSpriteSheet(tileSize, targetSize int) (*SpriteSheet, error) {
 	sheet := ebiten.NewImageFromImage(img)
 
 	// spriteAt returns a sprite at the provided coordinates.
-	spriteAt := func(x, y int) *ebiten.Image {
+	spriteAt := func(x, y, tileSize int, sheet *ebiten.Image) *ebiten.Image {
 		return sheet.SubImage(image.Rect(x*tileSize, y*tileSize, (x+1)*tileSize, (y+1)*tileSize)).(*ebiten.Image)
 	}
 
@@ -48,11 +48,11 @@ func LoadSpriteSheet(tileSize, targetSize int) (*SpriteSheet, error) {
 
 	// Populate SpriteSheet.
 	s := &SpriteSheet{}
-	s.Grass = scaleSprite(spriteAt(6, 0))
-	s.Dirt = scaleSprite(spriteAt(1, 0))
-	s.Water = scaleSprite(spriteAt(8, 0))
-	s.Rock = scaleSprite(spriteAt(7, 0))
-	s.Snow = scaleSprite(spriteAt(5, 1))
+	s.Grass = scaleSprite(spriteAt(6, 0, tileSize, sheet))
+	s.Dirt = scaleSprite(spriteAt(1, 0, tileSize, sheet))
+	s.Water = scaleSprite(spriteAt(8, 0, tileSize, sheet))
+	s.Rock = scaleSprite(spriteAt(7, 0, tileSize, sheet))
+	s.Snow = scaleSprite(spriteAt(5, 1, tileSize, sheet))
 
 	return s, nil
 }
