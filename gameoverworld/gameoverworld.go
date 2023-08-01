@@ -120,39 +120,37 @@ func (g *Game) PreRender(screen *ebiten.Image, timeDelta float64) error {
 	maxX := player.X + midX
 	maxY := player.Y + midY
 
-	verticalRange := 2 // Range per elevation level
+	verticalRange := 1 // Range per elevation level
 
 	// draw world
 	for y := minY; y < maxY; y++ {
 		for x := minX; x < maxX; x++ {
 			elevation := g.ElevationLevelAt(x, y)
-			if elevation < g.currentElevation {
-				var con concolor.Color
-				if g.currentElevation-elevation <= verticalRange {
-					con = concolor.RGB(0, 0, 0)
-				} else {
-					con = concolor.RGB(55, 55, 55)
-				}
-				g.worldView.Transform(midX-player.X+x, midY-player.Y+y, t.CharByte('-'), t.Foreground(con))
-				continue
-			}
-			if elevation >= g.currentElevation+verticalRange {
-				var con concolor.Color
-				if elevation-g.currentElevation <= verticalRange {
-					con = concolor.RGB(255, 255, 255)
-				} else {
-					con = concolor.RGB(128, 128, 128)
-				}
-				g.worldView.Transform(midX-player.X+x, midY-player.Y+y, t.CharByte('#'), t.Foreground(con))
-				continue
-			}
 			var con concolor.Color
 			if elevation < 0 {
 				con = concolor.RGB(0, 191, 255)
 			} else {
 				con = concolor.RGB(34, 139, 34)
 			}
-			g.worldView.Transform(midX-player.X+x, midY-player.Y+y, t.CharByte('.'), t.Foreground(con))
+			if elevation < g.currentElevation {
+				if g.currentElevation-elevation <= verticalRange {
+					con = darkenColor(con, 0.8)
+				} else {
+					con = darkenColor(con, 0.5)
+				}
+				g.worldView.Transform(midX-player.X+x, midY-player.Y+y, t.CharByte('.'), t.Foreground(con))
+				continue
+			}
+			if elevation >= g.currentElevation+verticalRange {
+				if elevation-g.currentElevation <= verticalRange {
+					con = darkenColor(con, 1.2)
+				} else {
+					con = concolor.RGB(80, 80, 80)
+				}
+				g.worldView.Transform(midX-player.X+x, midY-player.Y+y, t.CharByte('#'), t.Foreground(con))
+				continue
+			}
+			g.worldView.Transform(midX-player.X+x, midY-player.Y+y, t.CharByte('-'), t.Foreground(con))
 		}
 	}
 
@@ -173,6 +171,11 @@ func (g *Game) PreRender(screen *ebiten.Image, timeDelta float64) error {
 		}
 	}
 	return nil
+}
+
+func darkenColor(c concolor.Color, amount float64) concolor.Color {
+	r, g, b := c.R, c.G, c.B
+	return concolor.RGB(uint8(float64(r)*amount), uint8(float64(g)*amount), uint8(float64(b)*amount))
 }
 
 func (g *Game) ElevationLevelAt(x, y int) int {
