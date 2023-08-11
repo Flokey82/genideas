@@ -30,6 +30,14 @@ Tile based game example thingy (very rudimentary).
 
 ![alt text](/gametiles/images/rgb.png "Screenshot")
 
+## gennormalmap
+
+Crude port of https://github.com/8bittree/normal_heights to Go :)
+
+![alt text](/gennormalmap/images/in.png "Input")
+
+![alt text](/gennormalmap/images/out.png "Output")
+
 ## genpetscii
 
 This is an experiment in drawing a map using an extended PETSCII character set. This is still a work in progress.

@@ -17,3 +17,6 @@ genstatblock5e/cmd/runner
 .DS_Store
 gametiles/.DS_Store
 gameoverworld/cmd/runner
+gennormalmap/cmd/runner
+gennormalmap/cmd/test.png
+gennormalmap/cmd/test_out.png
