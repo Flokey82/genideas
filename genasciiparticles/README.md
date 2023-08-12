@@ -20,8 +20,11 @@ https://www.gridsagegames.com/blog/?s=particle+effects&searchsubmit=Search
         - [X] Character sets
     - [ ] Patterns
         - [X] Circular
-        - [ ] Linear
+        - [X] Linear
         - [ ] Random
         - [ ] Custom
     - [ ] Bloom
+        - [X] Basic (particle neighbors)
+        - [ ] Advanced (interpolation)
+    - [ ] Antialiasing
     - [ ] Physics (ricochet, wind, etc.)

@@ -22,16 +22,18 @@ const (
 	labelPlayerInfo = "Player Info"
 )
 
-var player = struct {
+type Pos struct {
 	X int
 	Y int
-}{3, 3}
+}
 
 type Game struct {
 	rootView       *console.Console
 	worldView      *console.Console
 	playerInfoView *console.Console
 	world          [][]byte
+	player         Pos
+	playerTarget   Pos
 	currentEffect  int
 }
 
@@ -65,6 +67,7 @@ func New() (*Game, error) {
 		worldView:      worldView,
 		playerInfoView: playerInfoView,
 		world:          world,
+		player:         Pos{X: 3, Y: 3},
 	}, nil
 }
 
@@ -105,6 +108,7 @@ type Effect struct {
 var effects = []Effect{
 	{"fairy fire", presetFire},
 	{"ice blast", presetIce},
+	{"magic missile", presetMagicMissile},
 }
 
 // checks if a tile is solid (tile content is not a space ' ' character)
@@ -125,21 +129,37 @@ func (g *Game) Run() {
 }
 
 func (g *Game) Tick(timeElapsed float64) error {
+	// If clicked, update the player target.
+	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+		cx, cy := ebiten.CursorPosition()
+		relX := cx / font.DefaultFont.TileWidth
+		relY := cy / font.DefaultFont.TileHeight
+		relY -= 1 // Subtract the header height.
+
+		// Get the screen offset depending on the player position.
+		midX := g.worldView.Width / 2
+		midY := g.worldView.Height / 2
+
+		// Calculate the target position.
+		g.playerTarget.X = relX + g.player.X - midX
+		g.playerTarget.Y = relY + g.player.Y - midY
+	}
+
 	// Move player
-	if inpututil.IsKeyJustPressed(ebiten.KeyW) && !g.isSolid(player.X, player.Y-1) {
-		player.Y -= 1
+	if inpututil.IsKeyJustPressed(ebiten.KeyW) && !g.isSolid(g.player.X, g.player.Y-1) {
+		g.player.Y -= 1
 	}
 
-	if inpututil.IsKeyJustPressed(ebiten.KeyS) && !g.isSolid(player.X, player.Y+1) {
-		player.Y += 1
+	if inpututil.IsKeyJustPressed(ebiten.KeyS) && !g.isSolid(g.player.X, g.player.Y+1) {
+		g.player.Y += 1
 	}
 
-	if inpututil.IsKeyJustPressed(ebiten.KeyA) && !g.isSolid(player.X-1, player.Y) {
-		player.X -= 1
+	if inpututil.IsKeyJustPressed(ebiten.KeyA) && !g.isSolid(g.player.X-1, g.player.Y) {
+		g.player.X -= 1
 	}
 
-	if inpututil.IsKeyJustPressed(ebiten.KeyD) && !g.isSolid(player.X+1, player.Y) {
-		player.X += 1
+	if inpututil.IsKeyJustPressed(ebiten.KeyD) && !g.isSolid(g.player.X+1, g.player.Y) {
+		g.player.X += 1
 	}
 
 	// Move particles and remove them if they are too old.
@@ -171,7 +191,7 @@ func (g *Game) Tick(timeElapsed float64) error {
 		maxAge := preset.MaxAge
 
 		// Calculate the origin of the effect.
-		origin := vectors.Vec2{X: float64(player.X) + 0.5, Y: float64(player.Y) + 0.5}
+		origin := vectors.Vec2{X: float64(g.player.X) + 0.5, Y: float64(g.player.Y) + 0.5}
 
 		// Spawn particles.
 		for i := 0; i < preset.NumParticles; i++ {
@@ -179,7 +199,14 @@ func (g *Game) Tick(timeElapsed float64) error {
 
 			// Calculate speed vector (evenly distributed in a circle)
 			curSpeedMag := mag * (1 + (rand.Float64()*2-1)*preset.Variance)
-			angle := float64(i) * math.Pi * 2 / float64(preset.NumParticles)
+			var angle float64
+			if preset.Pattern == PatternDirectional {
+				// Directional pattern, angle is the angle between the origin and the target.
+				angle = math.Atan2(float64(g.playerTarget.Y)+0.5-origin.Y, float64(g.playerTarget.X)+0.5-origin.X)
+			} else {
+				// Circle pattern, angle is evenly distributed.
+				angle = float64(i) * math.Pi * 2 / float64(preset.NumParticles)
+			}
 			speedVec := vectors.Vec2{X: math.Cos(angle), Y: math.Sin(angle)}.Mul(curSpeedMag)
 
 			// Add particle
@@ -220,39 +247,81 @@ func (g *Game) PreRender(screen *ebiten.Image, timeDelta float64) error {
 			if g.world[y][x] == ' ' {
 				continue
 			}
-
-			g.worldView.Transform(midX-player.X+x, midY-player.Y+y, t.CharByte(g.world[y][x]))
+			g.worldView.Transform(midX-g.player.X+x, midY-g.player.Y+y, t.CharByte(g.world[y][x]))
 		}
 	}
 
 	// Draw particles.
 	for _, part := range particles {
-		// Get the color from the palette based on the progress
-		// which we will use as the foreground color.
-		partCol := part.preset.GetConColor(1 - part.age/part.maxAge)
+		drawTile := func(deltas [][2]int, progress float64) {
+			// Get the color from the palette based on the progress
+			// which we will use as the foreground color.
+			partCol := part.preset.GetConColor(progress)
 
-		// Get the character from the palette based on the progress.
-		char := part.preset.GetChar(1 - part.age/part.maxAge)
+			// Get the character from the palette based on the progress.
+			char := part.preset.GetChar(progress)
 
-		// Get the color from the palette based on the progress
-		// which we will use as the background color.
-		backCol := part.preset.GetConColor(math.Pow(1-part.age/part.maxAge, 2))
+			// Get the color from the palette based on the progress
+			// which we will use as the background color.
+			backCol := part.preset.GetConColor(math.Pow(progress, 2))
+
+			// Draw the particle at the given deltas.
+			for _, delta := range deltas {
+				// Check if the delta is within a solid tile. If so, skip it.
+				if g.isSolid(int(part.pos.X)+delta[0], int(part.pos.Y)+delta[1]) {
+					continue
+				}
+				// TODO: Color of the tile should depend on how close the particle is to the center of the tile.
+				g.worldView.Transform(int(part.pos.X)+midX-g.player.X+delta[0], int(part.pos.Y)+midY-g.player.Y+delta[1], t.CharRune(char), t.Foreground(partCol), t.Background(backCol))
+			}
+		}
 
 		// Draw the particle.
-		g.worldView.Transform(int(part.pos.X)+midX-player.X, int(part.pos.Y)+midY-player.Y, t.CharRune(char), t.Foreground(partCol), t.Background(backCol))
+		drawTile([][2]int{{0, 0}}, 1-part.age/part.maxAge)
+
+		// Draw the bloom.
+		// TODO: Instead, bloom should be averaged by the surrounding tiles.
+		for i := 0; i < part.preset.Bloom; i++ {
+			progress := 1 - part.age/part.maxAge - float64(i)*0.1
+			if progress < 0 {
+				continue
+			}
+
+			// Draw the particle's direct neighbors as part of the bloom.
+			drawTile([][2]int{{i, 0}, {-i, 0}, {0, i}, {0, -i}}, progress)
+
+			// Draw the cross bloom.
+			progress = 1 - part.age/part.maxAge - float64(i)*0.2
+			if progress < 0 {
+				continue
+			}
+
+			// Draw the bloom corners.
+			drawTile([][2]int{{i, i}, {-i, i}, {i, -i}, {-i, -i}}, progress)
+		}
 	}
 
 	// draw player in the middle
 	g.worldView.Transform(midX, midY, t.CharByte('@'), t.Foreground(concolor.Green))
 
 	// draw player info
-	g.playerInfoView.PrintBounded(1, 1, g.playerInfoView.Width-2, 2, fmt.Sprintf("X=%d Y=%d", player.X, player.Y))
+	g.playerInfoView.PrintBounded(1, 1, g.playerInfoView.Width-2, 2, fmt.Sprintf("X=%d Y=%d", g.player.X, g.player.Y))
 	g.playerInfoView.PrintBounded(1, 3, g.playerInfoView.Width-2, 4, "SPACE: effect")
 	g.playerInfoView.PrintBounded(1, 4, g.playerInfoView.Width-2, 6, "TAB: next effect")
-	g.playerInfoView.PrintBounded(1, 6, g.playerInfoView.Width-2, 8, fmt.Sprintf("Effect: %s", effects[g.currentEffect].Name))
+	g.playerInfoView.PrintBounded(1, 6, g.playerInfoView.Width-2, 8, fmt.Sprintf("FX: %s", effects[g.currentEffect].Name))
+	g.playerInfoView.PrintBounded(1, 8, g.playerInfoView.Width-2, 10, "WASD: move")
+	g.playerInfoView.PrintBounded(1, 9, g.playerInfoView.Width-2, 12, "LMB: set target")
+	g.playerInfoView.PrintBounded(1, 11, g.playerInfoView.Width-2, 14, fmt.Sprintf("TGT: X=%d Y=%d", g.playerTarget.X, g.playerTarget.Y))
 
 	return nil
 }
+
+type Pattern int
+
+const (
+	PatternCircle Pattern = iota
+	PatternDirectional
+)
 
 type ParticlePreset struct {
 	CharPalette  []rune       // Character palette
@@ -261,6 +330,8 @@ type ParticlePreset struct {
 	SpeedMag     float64      // Speed magnitude
 	MaxAge       float64      // Max age of a particle
 	Variance     float64      // Variance of the speed magnitude and max age
+	Bloom        int          // Bloom intensity of the particle
+	Pattern      Pattern      // Pattern of the particles
 }
 
 // GetChar returns a character from the char palette based on the progress (0.0 - 1.0).
@@ -286,6 +357,8 @@ var presetFire = &ParticlePreset{
 	SpeedMag:     4,
 	MaxAge:       1.5,
 	Variance:     0.5,
+	Bloom:        2,
+	Pattern:      PatternCircle,
 }
 
 var presetIce = &ParticlePreset{
@@ -295,6 +368,19 @@ var presetIce = &ParticlePreset{
 	SpeedMag:     2,
 	MaxAge:       2.5,
 	Variance:     0,
+	Bloom:        2,
+	Pattern:      PatternCircle,
+}
+
+var presetMagicMissile = &ParticlePreset{
+	CharPalette:  []rune{'|'},
+	ColorPalette: magicMissileColorPalette,
+	NumParticles: 10,
+	SpeedMag:     20,
+	MaxAge:       0.5,
+	Variance:     0.2,
+	Bloom:        1,
+	Pattern:      PatternDirectional,
 }
 
 // doom fire palette :)
@@ -364,6 +450,20 @@ var iceColorPalette = []color.RGBA{
 	{R: 182, G: 255, B: 255}, // 19
 	{R: 218, G: 255, B: 255}, // 20
 	{R: 255, G: 255, B: 255}, // 21 - white
+}
+
+// laser palette :)
+// Creates a nice laser effect ranging from white to orange to red.
+var magicMissileColorPalette = []color.RGBA{
+	{R: 255, G: 255, B: 255}, //  0 - white
+	{R: 255, G: 255, B: 191}, //  1
+	{R: 255, G: 255, B: 127}, //  2
+	{R: 255, G: 255, B: 63},  //  3
+	{R: 255, G: 255, B: 0},   //  4 - yellow
+	{R: 255, G: 191, B: 0},   //  5
+	{R: 255, G: 127, B: 0},   //  6
+	{R: 255, G: 63, B: 0},    //  7 - orange
+	{R: 255, G: 0, B: 0},     //  8 - red
 }
 
 // char palette :)
