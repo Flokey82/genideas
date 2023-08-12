@@ -20,3 +20,4 @@ gameoverworld/cmd/runner
 gennormalmap/cmd/runner
 gennormalmap/cmd/test.png
 gennormalmap/cmd/test_out.png
+genasciiparticles/cmd/runner

@@ -30,6 +30,15 @@ Tile based game example thingy (very rudimentary).
 
 ![alt text](/gametiles/images/rgb.png "Screenshot")
 
+## genasciiparticles
+
+Experiments with ASCII based particle systems, very basic and heavily WIP.
+Right now, it just draws an area of effect around the mouse cursor and particles do not yet have any physics or bloom (lighting) effects.
+
+![alt text](/genasciiparticles/images/fire.png "fire")
+
+![alt text](/genasciiparticles/images/ice.png "ice")
+
 ## gennormalmap
 
 Crude port of https://github.com/8bittree/normal_heights to Go :)
