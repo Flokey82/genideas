@@ -9,7 +9,7 @@ import (
 var MotiveTypeSleep = &MotiveType{
 	Name:  "Sleep",
 	Curve: CurveTypeExponential,
-	Decay: 10.0,
+	Decay: 5.0,
 	OnMax: func() {},
 	OnMin: func() {
 		log.Println("Person is very tired!")
@@ -55,7 +55,7 @@ var MotiveTypeBladder = &MotiveType{
 var MotiveHygiene = &MotiveType{
 	Name:  "Hygiene",
 	Curve: CurveTypeExponential,
-	Decay: 10.0,
+	Decay: 5.0,
 	OnMax: func() {},
 	OnMin: func() {
 		log.Println("Person is very stinky!")

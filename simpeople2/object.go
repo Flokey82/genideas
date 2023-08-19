@@ -85,7 +85,7 @@ var ActionEat = &Action{
 	},
 	SideEffect: &Effect{
 		Motive: MotiveTypeBladder,
-		Effect: -50.0,
+		Effect: -20.0,
 	},
 }
 

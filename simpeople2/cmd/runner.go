@@ -29,32 +29,32 @@ func main() {
 
 	// Add some objects.
 	bed := simpeople2.ObjectTypeBed.New(vectors.Vec2{
-		X: rand.Float64() * 50,
-		Y: rand.Float64() * 50,
+		X: rand.Float64() * 25,
+		Y: rand.Float64() * 25,
 	})
 	w.Objects = append(w.Objects, bed)
 
 	fridge := simpeople2.ObjectTypeFridge.New(vectors.Vec2{
-		X: rand.Float64() * 50,
-		Y: rand.Float64() * 50,
+		X: rand.Float64() * 25,
+		Y: rand.Float64() * 25,
 	})
 	w.Objects = append(w.Objects, fridge)
 
 	tv := simpeople2.ObjectTypeCouch.New(vectors.Vec2{
-		X: rand.Float64() * 50,
-		Y: rand.Float64() * 50,
+		X: rand.Float64() * 25,
+		Y: rand.Float64() * 25,
 	})
 	w.Objects = append(w.Objects, tv)
 
 	toilet := simpeople2.ObjectTypeToilet.New(vectors.Vec2{
-		X: rand.Float64() * 50,
-		Y: rand.Float64() * 50,
+		X: rand.Float64() * 25,
+		Y: rand.Float64() * 25,
 	})
 	w.Objects = append(w.Objects, toilet)
 
 	shower := simpeople2.ObjectTypeShower.New(vectors.Vec2{
-		X: rand.Float64() * 50,
-		Y: rand.Float64() * 50,
+		X: rand.Float64() * 25,
+		Y: rand.Float64() * 25,
 	})
 	w.Objects = append(w.Objects, shower)
 
@@ -62,8 +62,8 @@ func main() {
 	p1 := w.NewPerson("Person 1")
 	w.People = append(w.People, p1)
 
-	//p2 := w.NewPerson("Person 2")
-	//w.People = append(w.People, p2)
+	p2 := w.NewPerson("Person 2")
+	w.People = append(w.People, p2)
 
 	// Tick the world.
 	for i := 0; i < 40; i++ {

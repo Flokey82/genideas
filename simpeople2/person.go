@@ -68,6 +68,7 @@ func (p *Person) Tick() {
 	// Calculate the priority of each action by multiplying the effect
 	// of the action with the current multiplier of the motive.
 	var actions []*actionRank
+	var current *actionRank
 	for _, o := range p.w.Objects {
 		for _, a := range o.Actions {
 			// MaxEffect is the maximum effect of the action taking into accoount the
@@ -89,6 +90,9 @@ func (p *Person) Tick() {
 			}
 			r.Log()
 			actions = append(actions, r)
+			if p.Action != nil && p.Action == a {
+				current = r
+			}
 		}
 	}
 
@@ -102,15 +106,21 @@ func (p *Person) Tick() {
 		return actions[i].Priority > actions[j].Priority
 	})
 
-	allowInterruption := false
+	// Check if we allow interruption and the factor by which the priority must be higher.
+	allowInterruption := true
+	interuptionMultiplier := 1.2
 
 	// Perform the action with the highest priority.
+	// TODO: Add randomness and pick from the top 3 or so, depending on how much the priority differs.
+	// If the top priority would be miles ahead of the second, we should pick the top one regardless.
 	ac := actions[0]
-	if p.Action == nil || (allowInterruption && p.Action != ac.Action) {
+
+	if p.Action == nil || (allowInterruption && p.Action != ac.Action && ac.Priority > current.Priority*interuptionMultiplier) {
 		p.Action = ac.Action
 		p.Destination = ac.Object
-
 		log.Printf("%s: %s %s", p.Name, p.Action.Name, p.Destination.Name)
+	} else {
+		log.Printf("%s: continuing %s %s", p.Name, p.Action.Name, p.Destination.Name)
 	}
 
 	p.PerformAction()
