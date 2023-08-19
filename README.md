@@ -12,6 +12,12 @@ All credit goes to the original author!
 
 ![alt text](/dfstyle/images/screen.png "Screenshot")
 
+## gameasciitiles
+
+GameAsciiTiles will be a simple library that demonstrates mixed ASCII and raster tile based roguelike game rendering. (pre-proof-of-concept stage)
+
+![alt text](/gameasciitiles/images/rgb.png "Screenshot")
+
 ## gameoverworld
 
 This is an experimental project experimenting with experimental ideas. It's a game, it's a world, it's a gameoverworld. :P
