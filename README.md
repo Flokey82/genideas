@@ -65,6 +65,18 @@ genshops is a procedural generator implemented in Golang that enables you to eff
 
 Does aliteration like "Glorbnorb's glorious gear".
 
+## genvegetation
+
+WIP port of Martin Lesser's https://github.com/MartinLesser/Procedural-distribution-of-vegetation to Go.
+
+The application calculates the growth probability of a given vegetation type for every pixel on a given heightmap.
+
+Input (heightmap and soil map):
+
+![alt text](/genvegetation/images/heightmap.png "heightmap")
+
+![alt text](/genvegetation/images/probability.png "probability")
+
 # noiserand
 
 The `noiserand` package implements a random number generator that is based on multidimensional noise, using one of the dimensions as a seed, which allows slight alterations to the seed to slightly alter the generated sequence.

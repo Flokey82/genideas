@@ -22,3 +22,10 @@ gennormalmap/cmd/test.png
 gennormalmap/cmd/test_out.png
 genasciiparticles/cmd/runner
 gameasciitiles/cmd/runner
+genvegetation/cmd/runner
+genvegetation/cmd/default_water_image.png
+genvegetation/cmd/default_probability_image.png
+genvegetation/cmd/default_orographic_normals.png
+genvegetation/cmd/default_insolation_image.png
+genvegetation/cmd/default_edaphic_image_angles.png
+genvegetation/cmd/default_edaphic_image.png
