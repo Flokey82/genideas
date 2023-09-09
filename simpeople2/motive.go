@@ -1,6 +1,7 @@
 package simpeople2
 
 import (
+	"fmt"
 	"log"
 	"math"
 )
@@ -90,9 +91,14 @@ type Motive struct {
 	Val  float64 // Current value of the motive
 }
 
+// String returns a string representation of the motive.
+func (m *Motive) String() string {
+	return m.Type.Name + ": " + fmt.Sprintf("%.2f", m.Val)
+}
+
 // Tick decays the motive value.
-func (m *Motive) Tick() {
-	m.Change(-m.Type.Decay)
+func (m *Motive) Tick(elapsed float64) {
+	m.Change(-m.Type.Decay * elapsed)
 	if m.Val >= maxMotiveValue {
 		m.Type.OnMax()
 	} else if m.Val <= minMotiveValue {

@@ -23,7 +23,6 @@ var ObjectTypeCouch = &ObjectType{
 	Name: "Couch",
 	Actions: []*Action{
 		ActionWatchTV,
-		ActionSleep,
 	},
 }
 
@@ -94,11 +93,11 @@ var ActionSleep = &Action{
 	Name: "Sleep",
 	Effect: &Effect{
 		Motive: MotiveTypeSleep,
-		Effect: 100.0,
+		Effect: 50.0,
 	},
 	SideEffect: &Effect{ // Sleeping makes you less hungry.
 		Motive: MotiveTypeFood,
-		Effect: -5.0,
+		Effect: -4.0,
 	},
 }
 
@@ -107,7 +106,7 @@ var ActionWatchTV = &Action{
 	Name: "Watch TV",
 	Effect: &Effect{
 		Motive: MotiveTypeFun,
-		Effect: 60.0,
+		Effect: 40.0,
 	},
 }
 

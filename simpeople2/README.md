@@ -6,6 +6,7 @@ NOTE: This implementation is loosely based on
 The Genius AI Behind The Sims - Game Maker's Toolkit
 https://www.youtube.com/watch?v=9gf2MT-IOsg
 
+![alt text](/simpeople2/images/rgb.png "Screenshot")
 
 ## How does it work?
 
@@ -28,7 +29,8 @@ In the Sims, objects within the world space advertise their utility for certain 
 
 - [X] Create motive type
     - [X] Decay
-        - [ ] Move from ticks to delta time
+        - [X] Move from ticks to delta time
+        - [ ] Tidy up delta time
     - [X] Multiplier
         - [X] Curves (linear, exponential, logarithmic, etc) for multipliers
         - [ ] Curve modifiers (steepness, etc)
@@ -68,6 +70,10 @@ In the Sims, objects within the world space advertise their utility for certain 
     - [X] Implement a fridge
     - [X] Implement a toilet
     - [X] Implement a shower
-    - [ ] Implement a couch
+    - [X] Implement a couch
 - [ ] Export to webp animation
+- [ ] UI
+- [ ] World
+    - [X] Tile based map
+    - [X] Adapted pathfinding
 - [ ] Tweak values!

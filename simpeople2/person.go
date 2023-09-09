@@ -21,11 +21,13 @@ type Person struct {
 	// If nil, the person is not performing an action.
 	Action      *Action
 	Destination *Object
+	path        []*Node
+	pathIdx     int
 }
 
 // NewPerson creates a new person.
 func (w *World) NewPerson(name string) *Person {
-	return &Person{
+	p := &Person{
 		Name: name,
 		Motives: []*Motive{
 			MotiveTypeSleep.New(),
@@ -36,10 +38,15 @@ func (w *World) NewPerson(name string) *Person {
 		},
 		w: w,
 		Position: vectors.Vec2{
-			X: rand.Float64() * 50,
-			Y: rand.Float64() * 50,
+			X: float64(rand.Intn(w.Width)),
+			Y: float64(rand.Intn(w.Height)),
 		},
 	}
+	if w.IsSolid(int(p.Position.X), int(p.Position.Y)) {
+		p.Position.X = float64(rand.Intn(w.Width))
+		p.Position.Y = float64(rand.Intn(w.Height))
+	}
+	return p
 }
 
 // Happiness returns the happiness of the person.
@@ -52,9 +59,9 @@ func (p *Person) Happiness() float64 {
 }
 
 // Tick ticks the person.
-func (p *Person) Tick() {
+func (p *Person) Tick(elapsed float64) {
 	for _, m := range p.Motives {
-		m.Tick()
+		m.Tick(elapsed)
 	}
 
 	// Get all the current multipliers for the motives.
@@ -69,6 +76,8 @@ func (p *Person) Tick() {
 	// of the action with the current multiplier of the motive.
 	var actions []*actionRank
 	var current *actionRank
+
+	evaluateSideEffect := true
 	for _, o := range p.w.Objects {
 		for _, a := range o.Actions {
 			// MaxEffect is the maximum effect of the action taking into accoount the
@@ -79,14 +88,19 @@ func (p *Person) Tick() {
 			// Priority is the effect of the action multiplied by the current multiplier
 			// of the motive.
 			priority := maxEffect * multipliers[a.Effect.Motive]
+			if evaluateSideEffect && a.SideEffect != nil {
+				maxSideEffect := math.Min(a.SideEffect.Effect, missingToMax[a.SideEffect.Motive])
+				priority += maxSideEffect * multipliers[a.SideEffect.Motive]
+			}
 
 			// TODO: Also take distance into account.
 			priority -= p.Position.DistanceTo(o.Position)
 
 			r := &actionRank{
-				Action:   a,
-				Object:   o,
-				Priority: priority,
+				Action:    a,
+				Object:    o,
+				Priority:  priority,
+				MaxEffect: maxEffect,
 			}
 			r.Log()
 			actions = append(actions, r)
@@ -101,21 +115,42 @@ func (p *Person) Tick() {
 		return
 	}
 
-	// Sort the actions by priority.
+	// Sort the actions by decreasing priority.
 	sort.Slice(actions, func(i, j int) bool {
 		return actions[i].Priority > actions[j].Priority
 	})
 
+	// for debug log all current priorities.
+	log.Println("Priorities:")
+	for _, a := range actions {
+		a.Log()
+	}
+
+	// Log multiplier of each motive.
+	log.Println("Multipliers:")
+	for _, m := range p.Motives {
+		log.Printf("%s: %.2f", m.Type.Name, m.Multiplier())
+	}
+
 	// Check if we allow interruption and the factor by which the priority must be higher.
 	allowInterruption := true
-	interuptionMultiplier := 1.2
+	interuptionMultiplier := 10.0
 
 	// Perform the action with the highest priority.
 	// TODO: Add randomness and pick from the top 3 or so, depending on how much the priority differs.
 	// If the top priority would be miles ahead of the second, we should pick the top one regardless.
 	ac := actions[0]
 
-	if p.Action == nil || (allowInterruption && p.Action != ac.Action && ac.Priority > current.Priority*interuptionMultiplier) {
+	const (
+		minInterruptPriority  = 50.0
+		minInterruptThreshold = 10.0
+	)
+
+	if p.Action == nil || (allowInterruption &&
+		p.Action != ac.Action &&
+		ac.Priority > current.Priority*interuptionMultiplier &&
+		ac.Priority > minInterruptPriority &&
+		current.Priority < minInterruptThreshold) {
 		p.Action = ac.Action
 		p.Destination = ac.Object
 		log.Printf("%s: %s %s", p.Name, p.Action.Name, p.Destination.Name)
@@ -123,22 +158,61 @@ func (p *Person) Tick() {
 		log.Printf("%s: continuing %s %s", p.Name, p.Action.Name, p.Destination.Name)
 	}
 
-	p.PerformAction()
+	p.PerformAction(elapsed)
 }
 
 const walkSpeed = 15.0 // How far the person can walk per tick
 
 // PerformAction performs the current action.
-func (p *Person) PerformAction() {
+func (p *Person) PerformAction(elapsed float64) {
 	if p.Action == nil {
 		return
+	}
+
+	if p.path == nil {
+		p.path = findPath(p.w, p, p.Destination)
+		p.pathIdx = 0
 	}
 
 	// If we haven't reached the destination yet, move towards it.
 	if !p.Position.Equalish(p.Destination.Position) {
 		log.Printf("%s: moving towards %s (distance %.2f)", p.Name, p.Destination.Name, p.Position.DistanceTo(p.Destination.Position))
-		// Set the speed
-		p.Speed = vectors.Normalize(p.Destination.Position.Sub(p.Position)).Mul(walkSpeed)
+		// Set the speed to the direction of the destination.
+
+		// Get the tile we want to move to. If we are close to the current index, move to the next one.
+		tileX := int(p.path[p.pathIdx].X)
+		tileY := int(p.path[p.pathIdx].Y)
+
+		// Check if the distance to the next tile is less than the distance we walk in the
+		// elapsed time. If so, move to the next tile (if there is one).
+		walkDist := walkSpeed * elapsed
+		if p.Position.DistanceTo(vectors.Vec2{
+			X: float64(tileX),
+			Y: float64(tileY),
+		}) < walkDist && p.pathIdx < len(p.path)-1 {
+			p.pathIdx++
+			if p.pathIdx >= len(p.path) {
+				p.path = nil
+				p.pathIdx = 0
+				return
+			}
+			tileX = int(p.path[p.pathIdx].X)
+			tileY = int(p.path[p.pathIdx].Y)
+		}
+
+		// Set the speed to the direction of the destination.
+		distVec := vectors.Normalize(vectors.Vec2{
+			X: float64(tileX),
+			Y: float64(tileY),
+		}.Sub(p.Position))
+
+		// If we are faster than the distance to the destination, we set the speed to the distance.
+		if distVec.Len() > walkDist {
+			p.Speed = distVec.Mul(walkDist)
+		} else {
+			p.Speed = distVec
+		}
+		// p.Speed = vectors.Normalize(p.Destination.Position.Sub(p.Position)).Mul(walkSpeed * elapsed)
 
 		// If we are faster than the distance to the destination, we set the speed to the distance.
 		if p.Speed.Len() > p.Position.DistanceTo(p.Destination.Position) {
@@ -148,30 +222,34 @@ func (p *Person) PerformAction() {
 		// Move towards the destination
 		p.Position = p.Position.Add(p.Speed)
 		return
+	} else {
+		p.path = nil
+		p.pathIdx = 0
 	}
 
 	// We have reached the destination, perform the action.
 	log.Printf("%s: performing %s", p.Name, p.Action.Name)
 
 	// Apply primary motive change.
-	p.ApplyEffect(p.Action.Effect)
+	p.ApplyEffect(p.Action.Effect, elapsed)
 
 	// Apply secondary motive change.
-	p.ApplyEffect(p.Action.SideEffect)
+	p.ApplyEffect(p.Action.SideEffect, elapsed)
 
 	// Reset the action.
-	p.Action = nil
-	p.Destination = nil
+	// TODO: Continue action if not yet considered "completed"
+	// p.Action = nil
+	// p.Destination = nil
 }
 
 // ApplyEffect applies the effect to the person.
-func (p *Person) ApplyEffect(e *Effect) {
+func (p *Person) ApplyEffect(e *Effect, elapsed float64) {
 	if e == nil {
 		return
 	}
 	for _, m := range p.Motives {
 		if m.Type == e.Motive {
-			m.Change(e.Effect)
+			m.Change(e.Effect * elapsed)
 			break
 		}
 	}
@@ -187,11 +265,12 @@ func (p *Person) Log() {
 }
 
 type actionRank struct {
-	Action   *Action
-	Object   *Object
-	Priority float64
+	Action    *Action
+	Object    *Object
+	Priority  float64
+	MaxEffect float64
 }
 
 func (a *actionRank) Log() {
-	log.Printf("%s %s: %.2f", a.Action.Name, a.Object.Name, a.Priority)
+	log.Printf("%s %s: %.2f (max %2f)", a.Action.Name, a.Object.Name, a.Priority, a.MaxEffect)
 }
