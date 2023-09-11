@@ -33,3 +33,9 @@ Average insolation throughout the day:
 Probability of vegetation growth (of a specific type):
 
 ![alt text](/genvegetation/images/probability.png "probability")
+
+## TODO
+
+- [ ] Use soil types based on erosion and deposition
+- [ ] Figure out insolation based on latitude and time of year
+- [ ] Refactor to allow for spherical coordinates

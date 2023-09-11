@@ -18,69 +18,6 @@ func NewInsolation(controller *Controller) *Insolation {
 	}
 }
 
-/*
-
-   def calculate_raw_insolation(self, sun, x, y, map_size, pixel_size, heightmap_max_height, height_conversion):
-       """
-       Calculates if a given point on the terrain receives light at a given daylight hour. Atmospheric absorption etc.
-       is not considered during this calculation.
-       :param sun: Object of the sun class. Used for calculating from which direction the sun shines.
-       :param x, y: Integer of the x and y position of the point on the terrain.
-       :param map_size: Integer of the size of the terrain.
-       :param pixel_size: Float. The size a pixel represents of the real terrain.
-       :param heightmap_max_height: Integer. Maximal height of the terrain.
-       :param height_conversion: Float. Conversion value of the height of the heightmap to calculate the real height.
-       """
-       uvw = sun.convert_to_uv_coordinates()  # transforms the polar coordinates of the sun to cartesian coordinates
-       x_step = uvw[0]
-       y_step = uvw[1]
-       z_step = uvw[2]
-       x_start_world_pos = x * pixel_size
-       y_start_world_pos = y * pixel_size
-       z_start_world_pos = self.controller.image_height_map.image[y][x] * height_conversion
-       x_real_world_pos = x_start_world_pos  # current x position for walking along the direction vector
-       y_real_world_pos = y_start_world_pos  # current y position for walking along the direction vector
-       z_real_world_pos = z_start_world_pos  # current z position for walking along the direction vector
-       t = 0  # used for the vector equation
-       sun_beam_reaches_pixel = True
-       map_x_y_boundary = map_size * pixel_size  # boundary of the map
-
-       while 0 <= x_real_world_pos < map_x_y_boundary and 0 <= y_real_world_pos < map_x_y_boundary \
-               and z_real_world_pos < heightmap_max_height:
-
-           # this if statement decides how far the sun direction vector will be followed until a new
-           # pixel in the pixel space will be reached. Only then a new height can be compared. This accelerates the
-           # algorithm.
-           if x_step != 0.0 or y_step != 0.0:
-               if x_real_world_pos % pixel_size >= y_real_world_pos % pixel_size and x_step != 0:
-                   t_step = (pixel_size - (x_real_world_pos % pixel_size)) / x_step
-               else:
-                   t_step = (pixel_size - (y_real_world_pos % pixel_size)) / y_step
-           else:
-               break  # sun stands in zenith so every pixel will receive light
-
-           t_step = abs(t_step)
-           t += t_step
-           x_real_world_pos = x_start_world_pos + t * x_step
-           y_real_world_pos = y_start_world_pos + t * y_step
-           z_real_world_pos = z_start_world_pos + t * z_step
-           x_pixel_pos = int(x_real_world_pos / pixel_size)
-           y_pixel_pos = int(y_real_world_pos / pixel_size)
-
-           if x_pixel_pos < 0 or y_pixel_pos < 0 or x_pixel_pos > map_size - 1 or y_pixel_pos > map_size - 1:
-               break  # sun beam leaves the map boundary
-
-           terrain_height = self.controller.image_height_map.image[y_pixel_pos][x_pixel_pos] * height_conversion
-           line_height = z_real_world_pos
-           if terrain_height > line_height:
-               sun_beam_reaches_pixel = False
-               break  # something blocks the light from the sun for that pixel
-       if sun_beam_reaches_pixel:
-           self.insolation_image.image[y][x] += SOLAR_CONSTANT_K_CALORIES_PER_HOUR  # * (map.pixel_size ** 2)
-
-
-*/
-
 // CalculateRawInsolation calculates if a given point on the terrain receives light at a given daylight hour.
 // Atmospheric absorption etc. is not considered during this calculation.
 // :param sun: Object of the sun class. Used for calculating from which direction the sun shines.
@@ -89,59 +26,121 @@ func NewInsolation(controller *Controller) *Insolation {
 // :param pixel_size: Float. The size a pixel represents of the real terrain.
 // :param heightmap_max_height: Integer. Maximal height of the terrain.
 // :param height_conversion: Float. Conversion value of the height of the heightmap to calculate the real height.
-func (i *Insolation) CalculateRawInsolation(sun *Sun, x, y, mapSize int, pixelSize, heightmapMaxHeight, heightConversion float64) {
-	uvw := sun.ConvertToUvCoordinates() // transforms the polar coordinates of the sun to cartesian coordinates
+// :return: amount of raw insolation, 0 if no light reaches the pixel.
+func (i *Insolation) CalculateRawInsolation(sun *Sun, x, y, mapSize int, pixelSize, heightmapMaxHeight, heightConversion float64) float64 {
+	// Transform the polar coordinates of the sun to cartesian coordinates.
+	uvw := sun.ConvertToUvCoordinates()
 	xStep := uvw.X
 	yStep := uvw.Y
 	zStep := uvw.Z
 
+	// We start at the target pixel position (translated to the real world position).
 	xStartWorldPos := float64(x) * pixelSize
 	yStartWorldPos := float64(y) * pixelSize
 	zStartWorldPos := i.controller.image_height_map[y][x] * heightConversion
-	xRealWorldPos := xStartWorldPos // current x position for walking along the direction vector
-	yRealWorldPos := yStartWorldPos // current y position for walking along the direction vector
-	zRealWorldPos := zStartWorldPos // current z position for walking along the direction vector
-	t := 0.0                        // used for the vector equation
+
+	// Initialize the current position for walking along the direction vector.
+	xRealWorldPos := xStartWorldPos
+	yRealWorldPos := yStartWorldPos
+	zRealWorldPos := zStartWorldPos
+
+	t := 0.0 // used for the vector equation
 	sunBeamReachesPixel := true
+
+	// Calculate the length of one side of the map.
 	mapXYBoundary := float64(mapSize) * pixelSize // boundary of the map
 
+	// Walk along the sun direction vector until the sun beam leaves the map boundary or the height of the terrain
+	// is higher than the current height of the sun beam.
 	for 0 <= xRealWorldPos && xRealWorldPos < mapXYBoundary && 0 <= yRealWorldPos && yRealWorldPos < mapXYBoundary && zRealWorldPos < heightmapMaxHeight {
-		// this if statement decides how far the sun direction vector will be followed until a new
-		// pixel in the pixel space will be reached. Only then a new height can be compared. This accelerates the
-		// algorithm.
 		var tStep float64
-		if xStep != 0.0 || yStep != 0.0 {
-			if math.Mod(xRealWorldPos, pixelSize) >= math.Mod(yRealWorldPos, pixelSize) && xStep != 0 {
-				tStep = (pixelSize - math.Mod(xRealWorldPos, pixelSize)) / xStep
-			} else {
-				tStep = (pixelSize - math.Mod(yRealWorldPos, pixelSize)) / yStep
-			}
-		} else {
+		if xStep == 0.0 && yStep == 0.0 {
 			break // sun stands in zenith so every pixel will receive light
 		}
 
-		tStep = math.Abs(tStep)
-		t += tStep
+		// This if statement decides how far the sun direction vector will be followed until a new
+		// pixel in the pixel space will be reached. Only then a new height can be compared.
+		// This accelerates the algorithm.
+
+		// Get the remainder distance to the next pixel.
+		//
+		// NOTE: Depending on the sign of the vector components, we need to calculate the remainder differently
+		// as we are either moving in a positive or a negatve direction, so we either need the distance to the
+		// next pixel (in terms of increasing coordinates) or the distance to the previous pixel (in terms of
+		// decreasing coordinates).
+		//
+		// Negative xStep and yStep:
+		//
+		//  pixel size
+		// |__________|
+		// |__________|
+		// |          |
+		// |          |remX = mod(x, pixel_size)
+		// | previous |____|
+		// | pixel    |    |
+		// -------------------------
+		//            |    |     | |
+		//            |    |     | | remY = mod(y, pixel_size)
+		//            |    P-----|---
+		//            |          |
+		//            ------------
+		//
+		// Positive xStep and yStep:
+		//
+		// ____________
+		// |          |
+		// |          |
+		// |    P-----|---
+		// |    |     | | remY = pixel_size - mod(y, pixel_size)
+		// ------------------------
+		//      |_____| Next pixel|
+		//      |     |           |
+		//       remX = pixel_size - mod(x, pixel_size)
+		//            |___________|
+		//
+		remX := math.Mod(xRealWorldPos, pixelSize)
+		if xStep >= 0 || remX == 0 {
+			remX = pixelSize - remX
+		}
+		remY := math.Mod(yRealWorldPos, pixelSize)
+		if yStep >= 0 || remY == 0 {
+			remY = pixelSize - remY
+		}
+
+		// Calculate the step size for the current direction vector to reach the next pixel.
+		if remX <= remY && xStep != 0 {
+			tStep = remX / xStep
+		} else {
+			tStep = remY / yStep
+		}
+
+		// Adjust our current position along the direction vector.
+		t += math.Abs(tStep)
+
 		xRealWorldPos = xStartWorldPos + t*xStep
 		yRealWorldPos = yStartWorldPos + t*yStep
 		zRealWorldPos = zStartWorldPos + t*zStep
+
+		// Calculate the pixel position in the pixel space.
 		xPixelPos := int(xRealWorldPos / pixelSize)
 		yPixelPos := int(yRealWorldPos / pixelSize)
 
+		// Check if the pixel position is outside of the map.
 		if xPixelPos < 0 || yPixelPos < 0 || xPixelPos > mapSize-1 || yPixelPos > mapSize-1 {
 			break // sun beam leaves the map boundary
 		}
 
+		// Check if the height of the terrain is higher than the current height of the sun beam.
 		terrainHeight := i.controller.image_height_map[yPixelPos][xPixelPos] * heightConversion
-		lineHeight := zRealWorldPos
-		if terrainHeight > lineHeight {
+		if terrainHeight > zRealWorldPos {
 			sunBeamReachesPixel = false
 			break // something blocks the light from the sun for that pixel
 		}
 	}
 	if sunBeamReachesPixel {
-		i.insolationImage.image[y][x] += SOLAR_CONSTANT_K_CALORIES_PER_HOUR // * (map.pixel_size ** 2)
+		return SOLAR_CONSTANT_K_CALORIES_PER_HOUR // * (map.pixel_size ** 2)
 	}
+	return 0.0
 }
 
 // nppad is a go implementation of numpy.pad. It pads the image with the given number of pixels.
@@ -162,38 +161,10 @@ func nppad(image [][]float64, padWidth int, mode string) [][]float64 {
 	return paddedImage
 }
 
-/*
-
-	def add_reflection_insolation(self, reflection_coefficient):
-        """
-        Adds the energy of the neighbours of a pixel and calculates the average. A fraction of this number will
-        be added to the currently observed pixel.
-        :param reflection_coefficient: Float. Fraction of the average energy of the neighbourspixels that the pixel
-            will receive.
-        """
-        padded_insolation_image = np.pad(self.insolation_image.image, 1, 'edge')
-        for y in range(1, self.controller.image_height_map.size + 1):
-            print("Reflection: Row: " + str(y))
-            for x in range(1, self.controller.image_height_map.size + 1):
-                neighbor_insolation_sum = 0
-                neighbor_insolation_sum += padded_insolation_image[y][x + 1]
-                neighbor_insolation_sum += padded_insolation_image[y + 1][x + 1]
-                neighbor_insolation_sum += padded_insolation_image[y + 1][x]
-                neighbor_insolation_sum += padded_insolation_image[y + 1][x - 1]
-                neighbor_insolation_sum += padded_insolation_image[y][x - 1]
-                neighbor_insolation_sum += padded_insolation_image[y - 1][x - 1]
-                neighbor_insolation_sum += padded_insolation_image[y - 1][x]
-                neighbor_insolation_sum += padded_insolation_image[y - 1][x + 1]
-                added_reflection_insolation = neighbor_insolation_sum / 8 * reflection_coefficient
-                self.insolation_image.image[y - 1][x - 1] += added_reflection_insolation
-
-*/
-
 // AddReflectionInsolation adds the energy of the neighbours of a pixel and calculates the average. A fraction of this number will
 // be added to the currently observed pixel.
 // :param reflection_coefficient: Float. Fraction of the average energy of the neighbourspixels that the pixel
-//
-//	will receive.
+// will receive.
 func (i *Insolation) AddReflectionInsolation(reflectionCoefficient float64) {
 	paddedInsolationImage := nppad(i.insolationImage.image, 1, "edge")
 	for y := 1; y < len(paddedInsolationImage)-1; y++ {
@@ -213,41 +184,6 @@ func (i *Insolation) AddReflectionInsolation(reflectionCoefficient float64) {
 	}
 }
 
-/*
-
-   def calculate_actual_insolation(self, map, daylight_hours, sun_start_elevation, sun_start_azimuth,
-                                   sun_max_elevation, reflection_coefficient):
-       """
-       Calculates the actual energy of each pixel based on the previously calculated raw energy. The atmosphere and
-       reflection reduce the raw energy.
-       :param map_name: String of the current map name.
-       :param daylight_hours: Integer of the number of daylight hours.
-       :param sun_start_elevation: Float of the start elevation of the sun.
-       :param sun_start_azimuth: Float of the start azimuth of the sun.
-       :param sun_max_elevation: Float of the maximal sun elevation (noon).
-       :param reflection_coefficient: Float of the reflection coeficient. It states how much light of the neighbour
-               pixel will be reflected.
-       :return: insolation_image: Image of the calculated actual energy of each pixel.
-       """
-       self.calculate_insolation_for_daylight_hours(map, daylight_hours, sun_start_elevation, sun_start_azimuth,
-                                                    sun_max_elevation)
-       for y in range(self.controller.image_height_map.size):
-           for x in range(self.controller.image_height_map.size):
-               pixel_raw_insolation = self.insolation_image.image[y][x]
-               cloud_reflection_loss = pixel_raw_insolation * map.biom.cloud_reflection / 100
-               atmospheric_absorption_loss = pixel_raw_insolation * map.biom.atmospheric_absorption / 100
-               atmospheric_diffusion_loss = pixel_raw_insolation * map.biom.atmospheric_diffusion / 100
-               soil_id = self.controller.soil_ids_map.image[y][x]
-               soil = self.controller.search_soil(soil_id)
-               albedo = soil.albedo
-               self.insolation_image.image[y][x] = (pixel_raw_insolation - cloud_reflection_loss -
-                                                    atmospheric_absorption_loss -
-                                                    atmospheric_diffusion_loss) * (1.0 - albedo)
-       self.add_reflection_insolation(reflection_coefficient)
-       return self.insolation_image
-
-*/
-
 // CalculateActualInsolation calculates the actual energy of each pixel based on the previously calculated raw energy. The atmosphere and
 // reflection reduce the raw energy.
 // :param map_name: String of the current map name.
@@ -256,8 +192,7 @@ func (i *Insolation) AddReflectionInsolation(reflectionCoefficient float64) {
 // :param sun_start_azimuth: Float of the start azimuth of the sun.
 // :param sun_max_elevation: Float of the maximal sun elevation (noon).
 // :param reflection_coefficient: Float of the reflection coeficient. It states how much light of the neighbour
-//
-//	pixel will be reflected.
+// pixel will be reflected.
 //
 // :return: insolation_image: Image of the calculated actual energy of each pixel.
 func (i *Insolation) CalculateActualInsolation(m *Map, daylightHours int, sunStartElevation, sunStartAzimuth, sunMaxElevation, reflectionCoefficient float64) *Image {
@@ -396,7 +331,7 @@ func (i *Insolation) CalculateInsolationForDaylightHours(m *Map, daylightHours i
 		for y := 0; y < len(i.controller.image_height_map); y++ {
 			fmt.Println("Raw Insolation: Row:" + strconv.Itoa(y))
 			for x := 0; x < len(i.controller.image_height_map[y]); x++ {
-				i.CalculateRawInsolation(sun, x, y, len(i.controller.image_height_map), m.pixel_size, maxHeight, m.height_conversion)
+				i.insolationImage.image[y][x] += i.CalculateRawInsolation(sun, x, y, len(i.controller.image_height_map), m.pixel_size, maxHeight, m.height_conversion)
 			}
 		}
 		if daylightHours%2 == 1 {
