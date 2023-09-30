@@ -4,7 +4,8 @@ import "github.com/Flokey82/go_gens/vectors"
 
 // ObjectTypeFridge is the object type of a fridge.
 var ObjectTypeFridge = &ObjectType{
-	Name: "Fridge",
+	Name:     "Fridge",
+	SpriteID: 146,
 	Actions: []*Action{
 		ActionEat,
 	},
@@ -12,7 +13,8 @@ var ObjectTypeFridge = &ObjectType{
 
 // ObjectTypeBed is the object type of a bed.
 var ObjectTypeBed = &ObjectType{
-	Name: "Bed",
+	Name:     "Bed",
+	SpriteID: 186,
 	Actions: []*Action{
 		ActionSleep,
 	},
@@ -20,7 +22,8 @@ var ObjectTypeBed = &ObjectType{
 
 // ObjectTypeCouch is the object type of a couch.
 var ObjectTypeCouch = &ObjectType{
-	Name: "Couch",
+	Name:     "Couch",
+	SpriteID: 190,
 	Actions: []*Action{
 		ActionWatchTV,
 	},
@@ -28,7 +31,8 @@ var ObjectTypeCouch = &ObjectType{
 
 // ObjectTypeToilet is the object type of a toilet.
 var ObjectTypeToilet = &ObjectType{
-	Name: "Toilet",
+	Name:     "Toilet",
+	SpriteID: 27,
 	Actions: []*Action{
 		ActionPee,
 	},
@@ -36,7 +40,8 @@ var ObjectTypeToilet = &ObjectType{
 
 // ObjectTypeShower is the object type of a shower.
 var ObjectTypeShower = &ObjectType{
-	Name: "Shower",
+	Name:     "Shower",
+	SpriteID: 425,
 	Actions: []*Action{
 		ActionShower,
 	},
@@ -44,8 +49,9 @@ var ObjectTypeShower = &ObjectType{
 
 // ObjectType is an object in the simulation that can advertise available actions and their effects.
 type ObjectType struct {
-	Name    string
-	Actions []*Action
+	Name     string
+	SpriteID int
+	Actions  []*Action
 }
 
 // New creates a new object.

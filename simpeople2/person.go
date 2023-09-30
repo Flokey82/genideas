@@ -11,18 +11,26 @@ import (
 
 // Person is a person in the simulation.
 type Person struct {
-	Name     string       // Name of the person
-	Motives  []*Motive    // Motives of the person
-	Position vectors.Vec2 // Position of the person
-	Speed    vectors.Vec2 // Speed of the person
-	w        *World       // The world the person is in
+	Name    string    // Name of the person
+	Motives []*Motive // Motives of the person
+
+	w *World // The world the person is in
 
 	// Current action the person is performing.
 	// If nil, the person is not performing an action.
 	Action      *Action
 	Destination *Object
-	path        []*Node
-	pathIdx     int
+
+	// Position and speed of the person.
+	Position vectors.Vec2 // Position of the person
+	Speed    vectors.Vec2 // Speed of the person
+
+	// Pathfinding (current path, and current index in the path).
+	path    []*Node
+	pathIdx int
+
+	// For the walking animation.
+	count int // animation frame counter
 }
 
 // NewPerson creates a new person.
@@ -64,6 +72,26 @@ func (p *Person) Tick(elapsed float64) {
 		m.Tick(elapsed)
 	}
 
+	// Determine the best action.
+	p.DetermineAction()
+
+	// Perform pathfinding / navigation and if we have arrived the action.
+	p.PerformAction(elapsed)
+}
+
+type actionRank struct {
+	Action    *Action
+	Object    *Object
+	Priority  float64
+	MaxEffect float64
+}
+
+func (a *actionRank) Log() {
+	log.Printf("%s %s: %.2f (max %2f)", a.Action.Name, a.Object.Name, a.Priority, a.MaxEffect)
+}
+
+// DetermineAction checks if we change the current action.
+func (p *Person) DetermineAction() {
 	// Get all the current multipliers for the motives.
 	multipliers := make(map[*MotiveType]float64)
 	missingToMax := make(map[*MotiveType]float64)
@@ -146,6 +174,8 @@ func (p *Person) Tick(elapsed float64) {
 		minInterruptThreshold = 10.0
 	)
 
+	// Select an action if we don't have one yet or if a new action has a higher priority.
+	// TODO: Factor out the decision making into a separate function.
 	if p.Action == nil || (allowInterruption &&
 		p.Action != ac.Action &&
 		ac.Priority > current.Priority*interuptionMultiplier &&
@@ -157,89 +187,101 @@ func (p *Person) Tick(elapsed float64) {
 	} else {
 		log.Printf("%s: continuing %s %s", p.Name, p.Action.Name, p.Destination.Name)
 	}
+}
 
-	p.PerformAction(elapsed)
+// PerformAction performs the current action.
+// TODO: Factor out pathfinding and all that.
+func (p *Person) PerformAction(elapsed float64) {
+	// If we don't have an action set, return.
+	if p.Action == nil {
+		return
+	}
+	p.navigateToDestinationAndThen(elapsed, func() {
+		// We have reached the destination, perform the action.
+		log.Printf("%s: performing %s", p.Name, p.Action.Name)
+
+		// Apply primary motive change.
+		p.ApplyEffect(p.Action.Effect, elapsed)
+
+		// Apply secondary motive change.
+		p.ApplyEffect(p.Action.SideEffect, elapsed)
+
+		// Reset the action.
+		// TODO: Continue action if not yet considered "completed"
+		// p.Action = nil
+		// p.Destination = nil
+	}, func() {
+		// We have failed to reach the destination, reset the action and destination.
+		p.Action = nil
+		p.Destination = nil
+	})
 }
 
 const walkSpeed = 15.0 // How far the person can walk per tick
 
-// PerformAction performs the current action.
-func (p *Person) PerformAction(elapsed float64) {
-	if p.Action == nil {
+func (p *Person) navigateToDestinationAndThen(elapsed float64, success, failure func()) {
+	// If we have reached the destination, perform the action.
+	if p.Position.Equalish(p.Destination.Position) {
+		// Reset the path, since we have reached the destination.
+		p.path = nil
+		p.pathIdx = 0
+
+		// Perform the action.
+		success()
 		return
 	}
 
+	// If we don't have a path set, find a route to the destination.
 	if p.path == nil {
 		p.path = findPath(p.w, p, p.Destination)
 		p.pathIdx = 0
+		if len(p.path) == 0 {
+			log.Printf("%s: no path found to %s", p.Name, p.Destination.Name)
+			failure()
+			return
+		}
 	}
 
 	// If we haven't reached the destination yet, move towards it.
-	if !p.Position.Equalish(p.Destination.Position) {
-		log.Printf("%s: moving towards %s (distance %.2f)", p.Name, p.Destination.Name, p.Position.DistanceTo(p.Destination.Position))
-		// Set the speed to the direction of the destination.
+	log.Printf("%s: moving towards %s (distance %.2f)", p.Name, p.Destination.Name, p.Position.DistanceTo(p.Destination.Position))
 
-		// Get the tile we want to move to. If we are close to the current index, move to the next one.
-		tileX := int(p.path[p.pathIdx].X)
-		tileY := int(p.path[p.pathIdx].Y)
+	// Get the tile we want to move to. If we are close to the current index, move to the next one.
+	tileX := int(p.path[p.pathIdx].X)
+	tileY := int(p.path[p.pathIdx].Y)
 
-		// Check if the distance to the next tile is less than the distance we walk in the
-		// elapsed time. If so, move to the next tile (if there is one).
-		walkDist := walkSpeed * elapsed
-		if p.Position.DistanceTo(vectors.Vec2{
-			X: float64(tileX),
-			Y: float64(tileY),
-		}) < walkDist && p.pathIdx < len(p.path)-1 {
-			p.pathIdx++
-			if p.pathIdx >= len(p.path) {
-				p.path = nil
-				p.pathIdx = 0
-				return
-			}
-			tileX = int(p.path[p.pathIdx].X)
-			tileY = int(p.path[p.pathIdx].Y)
-		}
-
-		// Set the speed to the direction of the destination.
-		distVec := vectors.Normalize(vectors.Vec2{
-			X: float64(tileX),
-			Y: float64(tileY),
-		}.Sub(p.Position))
-
-		// If we are faster than the distance to the destination, we set the speed to the distance.
-		if distVec.Len() > walkDist {
-			p.Speed = distVec.Mul(walkDist)
-		} else {
-			p.Speed = distVec
-		}
-		// p.Speed = vectors.Normalize(p.Destination.Position.Sub(p.Position)).Mul(walkSpeed * elapsed)
-
-		// If we are faster than the distance to the destination, we set the speed to the distance.
-		if p.Speed.Len() > p.Position.DistanceTo(p.Destination.Position) {
-			p.Speed = vectors.Normalize(p.Destination.Position.Sub(p.Position)).Mul(p.Position.DistanceTo(p.Destination.Position))
-		}
-
-		// Move towards the destination
-		p.Position = p.Position.Add(p.Speed)
-		return
-	} else {
-		p.path = nil
-		p.pathIdx = 0
+	// Check if the distance to the next tile is less than the distance we walk in the
+	// elapsed time. If so, move to the next tile (if there is one).
+	walkDist := walkSpeed * elapsed
+	if p.Position.DistanceTo(vectors.Vec2{
+		X: float64(tileX),
+		Y: float64(tileY),
+	}) < walkDist && p.pathIdx < len(p.path)-1 {
+		// We are close to the next tile, move to the next one.
+		p.pathIdx++
+		tileX = int(p.path[p.pathIdx].X)
+		tileY = int(p.path[p.pathIdx].Y)
 	}
 
-	// We have reached the destination, perform the action.
-	log.Printf("%s: performing %s", p.Name, p.Action.Name)
+	// Set the speed to the direction of the next waypoint.
+	distVec := vectors.Vec2{
+		X: float64(tileX),
+		Y: float64(tileY),
+	}.Sub(p.Position)
 
-	// Apply primary motive change.
-	p.ApplyEffect(p.Action.Effect, elapsed)
+	// Make sure we don't overshoot the next waypoint.
+	if distVec.Len() > walkDist {
+		p.Speed = distVec.Normalize().Mul(walkDist)
+	} else {
+		p.Speed = distVec
+	}
 
-	// Apply secondary motive change.
-	p.ApplyEffect(p.Action.SideEffect, elapsed)
+	// If we are faster than the distance to the destination, we set the speed to the distance.
+	if distDest := p.Position.DistanceTo(p.Destination.Position); p.Speed.Len() > distDest {
+		p.Speed = vectors.Normalize(p.Destination.Position.Sub(p.Position)).Mul(distDest)
+	}
 
-	// Reset the action.
-	// TODO: Continue action if not yet considered "completed"
-	// p.Action = nil
-	// p.Destination = nil
+	// Move towards the destination
+	p.Position = p.Position.Add(p.Speed)
 }
 
 // ApplyEffect applies the effect to the person.
@@ -262,15 +304,4 @@ func (p *Person) Log() {
 	for _, m := range p.Motives {
 		m.Log()
 	}
-}
-
-type actionRank struct {
-	Action    *Action
-	Object    *Object
-	Priority  float64
-	MaxEffect float64
-}
-
-func (a *actionRank) Log() {
-	log.Printf("%s %s: %.2f (max %2f)", a.Action.Name, a.Object.Name, a.Priority, a.MaxEffect)
 }

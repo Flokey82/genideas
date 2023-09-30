@@ -42,7 +42,7 @@ In the Sims, objects within the world space advertise their utility for certain 
         - [ ] Social
         - [X] Fun
 - [X] Create a person
-    - [ ] Movement and pathfinding
+    - [-] Movement and pathfinding
     - [X] Add a list of motives
     - [X] Implement a basic action
         - [X] Eat

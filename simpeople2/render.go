@@ -11,7 +11,6 @@ import (
 	"github.com/hajimehoshi/ebiten/ebitenutil"
 	"github.com/hajimehoshi/ebiten/examples/resources/fonts"
 	"github.com/hajimehoshi/ebiten/examples/resources/images"
-	"github.com/hajimehoshi/ebiten/inpututil"
 	"github.com/hajimehoshi/ebiten/text"
 	"github.com/mazznoer/colorgrad"
 	"golang.org/x/image/font"
@@ -25,23 +24,23 @@ const (
 )
 
 type Render struct {
-	levelWidth   int
-	levelHeight  int
-	screenWidth  int
-	screenHeight int
-	camX         float64
-	camY         float64
-	camScale     float64
-	camScaleTo   float64
-	mousePanX    int
-	mousePanY    int
-	Font         font.Face
-	BigFont      font.Face
-	offscreen    *ebiten.Image
-	target       *ebiten.Image
-	sprites      *SpriteSheet
-	runner       *SpriteSheet
-	count        int // animation frame counter
+	levelWidth    int
+	levelHeight   int
+	screenWidth   int
+	screenHeight  int
+	camX          float64
+	camY          float64
+	camScale      float64
+	camScaleTo    float64
+	mousePanX     int
+	mousePanY     int
+	Font          font.Face
+	BigFont       font.Face
+	offscreen     *ebiten.Image
+	target        *ebiten.Image
+	spritesEbiten *SpriteSheet
+	spritesKenney *SpriteSheet
+	spritesRunner *SpriteSheet
 }
 
 func newRender(width, height int) (*Render, error) {
@@ -67,30 +66,37 @@ func newRender(width, height int) (*Render, error) {
 		return nil, err
 	}
 	// Load tiles.
-	sTiles, err := LoadSpriteSheet(16, tileSize, Spritesheet_png)
+	sTilesEbiten, err := LoadSpriteSheet(16, tileSize, 0, Spritesheet_png)
+	if err != nil {
+		return nil, err
+	}
+
+	// Load kenney tiles.
+	sTilesKenney, err := LoadSpriteSheet(16, tileSize, 1, SpritesheetKenney_png)
 	if err != nil {
 		return nil, err
 	}
 
 	// Load runner animation and convert the frames from 32x32 to 16x16.
 	// TODO: Move to TileSet.
-	sRunner, err := LoadSpriteSheet(32, tileSize, images.Runner_png)
+	sRunner, err := LoadSpriteSheet(32, tileSize, 0, images.Runner_png)
 	if err != nil {
 		log.Fatal(err)
 	}
 	return &Render{
-		levelWidth:  width,
-		levelHeight: height,
-		camX:        float64(width) * tileSize / 2,
-		camY:        -float64(height) * tileSize / 2,
-		camScale:    1,
-		camScaleTo:  1,
-		mousePanX:   math.MinInt32,
-		mousePanY:   math.MinInt32,
-		Font:        mplusNormalFont,
-		BigFont:     mplusBigFont,
-		sprites:     sTiles,
-		runner:      sRunner,
+		levelWidth:    width,
+		levelHeight:   height,
+		camX:          float64(width) * tileSize / 2,
+		camY:          -float64(height) * tileSize / 2,
+		camScale:      1,
+		camScaleTo:    1,
+		mousePanX:     math.MinInt32,
+		mousePanY:     math.MinInt32,
+		Font:          mplusNormalFont,
+		BigFont:       mplusBigFont,
+		spritesEbiten: sTilesEbiten,
+		spritesKenney: sTilesKenney,
+		spritesRunner: sRunner,
 	}, nil
 }
 
@@ -176,13 +182,6 @@ func (g *Render) handleInput() {
 	} else if g.camY > 0 {
 		g.camY = 0
 	}
-
-	// If we click, print the tile we clicked on.
-	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-		x, y := g.getTileXY()
-		fmt.Printf("Clicked on tile %d,%d\n", x, y)
-		// TODO: Add pathfinding from player to tile.
-	}
 }
 
 func (g *Render) getTileXY() (int, int) {
@@ -214,10 +213,7 @@ func worldToTile(x, y int) (int, int) {
 	return x, y
 }
 
-func (g *World) Draw(screen *ebiten.Image) {
-	padding := float64(tileSize) * g.camScale
-	cx, cy := float64(g.screenWidth/2), float64(g.screenHeight/2)
-
+func (g *Render) preRender(screen *ebiten.Image) {
 	// Check if we have zoomed in (scaleLater) or not.
 	scaleLater := g.camScale > 1
 	g.target = screen
@@ -245,176 +241,135 @@ func (g *World) Draw(screen *ebiten.Image) {
 		g.target = g.offscreen
 		g.target.Clear()
 	}
+}
 
-	isOutOfBounds := func(x, y float64) bool {
-		// Calculate the on-screen position of the tile to verify if it is visible.
-		drawX := (x-g.camX)*g.camScale + cx
-		drawY := (y+g.camY)*g.camScale + cy
-
-		// Skip tiles that are not visible.
-		return drawX+padding < 0 || drawY+padding < 0 || drawX-padding > float64(g.screenWidth) || drawY-padding > float64(g.screenHeight)
-	}
-
-	op := &ebiten.DrawImageOptions{}
-	// Draw each tile with each DrawImage call.
+func (g *Render) getDrawOp(x, y float64, op *ebiten.DrawImageOptions) *ebiten.DrawImageOptions { // Draw each tile with each DrawImage call.
 	// As the source images of all DrawImage calls are always the same,
 	// this rendering is done very efficiently.
 	// For more detail, see https://pkg.go.dev/github.com/hajimehoshi/ebiten/v2#Image.DrawImage
-	getDrawOp := func(x, y float64) *ebiten.DrawImageOptions {
-		// Skip tiles that are not visible.
-		if isOutOfBounds(x, y) {
-			return nil
-		}
+	// Skip tiles that are not visible.
+	padding := float64(tileSize) * g.camScale
 
-		op.GeoM.Reset()
-		// Move to current position P (in absolute world coordinates).
-		// NOTE: I use screen coordinates, so 0, 0 is the top left corner.
-		//
-		//                              | - y
-		//                              |
-		//                              |
-		//                              |           *P
-		//                              |
-		//                              |
-		//                              |                       *C
-		//  ____________________________|______________________________ x
-		//                              |
-		//                              |
-		//                              |
-		//                              |
-		//                              |
-		//                              |
-		//                              | y
+	// Calculate the on-screen position of the tile to verify if it is visible.
+	drawX, drawY := g.getScaledXYPos(x, y)
 
-		// .... and translate the point to be relative to the camera position C. (P - C)
-		//
-		//                              | - y
-		//                              |
-		//                              |
-		//                              |
-		//                  *P          |
-		//                              |
-		//                              |
-		//  ____________________________*C_____________________________ x
-		//                              |
-		//                              |
-		//                              |
-		//                              |
-		//                              |
-		//                              |
-		//                              | y
-		// ______________________________
-		// |                            |
-		// |                            |
-		// |              ______________|______________
-		// |             |   *P         |             |
-		// |             |   |          |             |
-		// |             |   |          |             |
-		// |             |   |----------*C            |
-		// |_____________|______________|             |
-		//               |                            |
-		//               |                            |
-		//               |____________________________|
-		op.GeoM.Translate(x-g.camX, y+g.camY)
-
-		// Zoom.
-		if !scaleLater {
-			// Scale the image relative to the camera position.
-			// The higher the zoom, the larger the distance in pixels between the camera and the point.
-			// ______________________________
-			// |                            | - y
-			// |                            |
-			// |                            |
-			// |                 *P         |
-			// |                 |    ______|______
-			// |                 |    |     |     |
-			// |      -----------|----|-----*C----|-------------------- x
-			// |______________________|_____|_____| <- Scaled by 2
-			//                              |
-			//                              |
-			//                              |
-			//                              |
-			//                              | y
-			op.GeoM.Scale(g.camScale, g.camScale)
-		}
-		// Translate the point from "relative to camera" to "relative to screen origin"
-		// (with the camera being the center of the screen SC). (P - C) + SC/2
-		//
-		//                              | - y
-		//                              |
-		//                              |
-		//                              |
-		//                              |
-		//                              |
-		//                              |
-		//  ____________________________|______________________________ x
-		//                              |   *P
-		//                              |
-		//                              |
-		//                              |              *C
-		//                              |
-		//                              |
-		//                              | y
-		// Screen:
-		// ______________________________
-		// |   *P                       |
-		// |   |                        |
-		// |   |                        |
-		// |   |----------*C            |
-		// |                            |
-		// |                            |
-		// |                            |
-		// |____________________________|
-		op.GeoM.Translate(cx, cy)
-
-		return op
+	// Skip tiles that are not visible.
+	if drawX+padding < 0 || drawY+padding < 0 || drawX-padding > float64(g.screenWidth) || drawY-padding > float64(g.screenHeight) {
+		return nil
 	}
 
-	render := func(target *ebiten.Image) {
-		xCount := g.levelWidth
-		for i := 0; i < g.levelWidth*g.levelHeight; i++ {
-			// Get actual world position of the tile.
-			x := float64((i % xCount) * tileSize)
-			y := float64((i / xCount) * tileSize)
+	// Check if we have zoomed in (scaleLater) or not.
+	scaleLater := g.camScale > 1
 
-			if op := getDrawOp(x, y); op != nil {
-				// Draw ground.
-				target.DrawImage(g.sprites.GetSubImageID(g.Level.GetGround(i%xCount, i/xCount)), op)
+	op.GeoM.Reset()
+	// Move to current position P (in absolute world coordinates).
+	// NOTE: I use screen coordinates, so 0, 0 is the top left corner.
+	//
+	//                              | - y
+	//                              |
+	//                              |
+	//                              |           *P
+	//                              |
+	//                              |
+	//                              |                       *C
+	//  ____________________________|______________________________ x
+	//                              |
+	//                              |
+	//                              |
+	//                              |
+	//                              |
+	//                              |
+	//                              | y
 
-				// Draw tile.
-				if t := g.Level.GetTile(i%xCount, i/xCount); t != 0 {
-					target.DrawImage(g.sprites.GetSubImageID(t), op)
-				}
-			}
-		}
+	// .... and translate the point to be relative to the camera position C. (P - C)
+	//
+	//                              | - y
+	//                              |
+	//                              |
+	//                              |
+	//                  *P          |
+	//                              |
+	//                              |
+	//  ____________________________*C_____________________________ x
+	//                              |
+	//                              |
+	//                              |
+	//                              |
+	//                              |
+	//                              |
+	//                              | y
+	// ______________________________
+	// |                            |
+	// |                            |
+	// |              ______________|______________
+	// |             |   *P         |             |
+	// |             |   |          |             |
+	// |             |   |          |             |
+	// |             |   |----------*C            |
+	// |_____________|______________|             |
+	//               |                            |
+	//               |                            |
+	//               |____________________________|
+	op.GeoM.Translate(x*tileSize-g.camX, y*tileSize+g.camY)
 
-		// Draw the objects on top.
-		for _, o := range g.Objects {
-			// Get actual world position of the object.
-			x := o.Position.X * tileSize
-			y := o.Position.Y * tileSize
-
-			if op := getDrawOp(x, y); op != nil {
-				target.DrawImage(g.sprites.GetSubImageID(286), op)
-			}
-		}
-
-		// Draw the players on top.
-		for _, p := range g.People {
-			// Get actual world position of the person.
-			x := p.Position.X * tileSize
-			y := p.Position.Y * tileSize
-
-			if op := getDrawOp(x, y); op != nil {
-				// Draw animation frame.
-				const frameCount = 8
-				target.DrawImage(g.runner.GetSubImageXY((g.count/5)%frameCount, 1), op)
-			}
-		}
+	// Zoom.
+	if !scaleLater {
+		// Scale the image relative to the camera position.
+		// The higher the zoom, the larger the distance in pixels between the camera and the point.
+		// ______________________________
+		// |                            | - y
+		// |                            |
+		// |                            |
+		// |                 *P         |
+		// |                 |    ______|______
+		// |                 |    |     |     |
+		// |      -----------|----|-----*C----|-------------------- x
+		// |______________________|_____|_____| <- Scaled by 2
+		//                              |
+		//                              |
+		//                              |
+		//                              |
+		//                              | y
+		op.GeoM.Scale(g.camScale, g.camScale)
 	}
+	// Translate the point from "relative to camera" to "relative to screen origin"
+	// (with the camera being the center of the screen SC). (P - C) + SC/2
+	//
+	//                              | - y
+	//                              |
+	//                              |
+	//                              |
+	//                              |
+	//                              |
+	//                              |
+	//  ____________________________|______________________________ x
+	//                              |   *P
+	//                              |
+	//                              |
+	//                              |              *C
+	//                              |
+	//                              |
+	//                              | y
+	// Screen:
+	// ______________________________
+	// |   *P                       |
+	// |   |                        |
+	// |   |                        |
+	// |   |----------*C            |
+	// |                            |
+	// |                            |
+	// |                            |
+	// |____________________________|
 
-	render(g.target)
+	// Translate the origin from the top left corner of the screen to the center (where the camera is).
+	op.GeoM.Translate(float64(g.screenWidth/2), float64(g.screenHeight/2))
 
+	return op
+}
+
+func (g *Render) postRender(screen *ebiten.Image) {
+	scaleLater := g.camScale > 1
+	cx, cy := float64(g.screenWidth/2), float64(g.screenHeight/2)
 	if scaleLater {
 		op := &ebiten.DrawImageOptions{}
 		// Translate the origin from the top left corner of the screen to the center (where the camera is).
@@ -426,15 +381,71 @@ func (g *World) Draw(screen *ebiten.Image) {
 		// Draw the offscreen buffer to the screen.
 		screen.DrawImage(g.target, op)
 	}
+}
+
+func (g *Render) drawGraphics(screen *ebiten.Image, f func(target *ebiten.Image)) {
+	// Pre-render.
+	g.preRender(screen)
+
+	// Render.
+	f(g.target)
+
+	// Post-render.
+	g.postRender(screen)
+}
+
+// getScaledXYPos returns the on-screen position of the given world (tile) coordinates.
+func (g *Render) getScaledXYPos(x, y float64) (float64, float64) {
+	drawX := (x*tileSize-g.camX)*g.camScale + float64(g.screenWidth/2)
+	drawY := (y*tileSize+g.camY)*g.camScale + float64(g.screenHeight/2)
+	return drawX, drawY
+}
+
+func (g *Render) drawLabel(screen *ebiten.Image, x, y float64, label string, col color.Color) {
+	// Calculate the on-screen position of the label.
+	drawX, drawY := g.getScaledXYPos(x, y)
+
+	screen.Set(int(drawX), int(drawY), col)
+	text.Draw(screen, label, g.Font, int(drawX), int(drawY), col)
+}
+
+func (g *World) Draw(screen *ebiten.Image) {
+	// Create a new DrawImageOptions that we can reuse for each DrawImage call.
+	op := &ebiten.DrawImageOptions{}
+	render := func(target *ebiten.Image) {
+		xCount := g.levelWidth
+		for i := 0; i < g.levelWidth*g.levelHeight; i++ {
+			if op := g.getDrawOp(float64((i % xCount)), float64((i / xCount)), op); op != nil {
+				// Draw ground.
+				target.DrawImage(g.spritesKenney.GetSubImageID(g.Level.GetGround(i%xCount, i/xCount)), op)
+
+				// Draw tile.
+				if t := g.Level.GetTile(i%xCount, i/xCount); t != 0 {
+					target.DrawImage(g.spritesKenney.GetSubImageID(t), op)
+				}
+			}
+		}
+
+		// Draw the objects on top.
+		for _, o := range g.Objects {
+			if op := g.getDrawOp(o.Position.X, o.Position.Y, op); op != nil {
+				target.DrawImage(g.spritesKenney.GetSubImageID(o.SpriteID), op)
+			}
+		}
+
+		// Draw the players on top.
+		const frameCount = 8
+		for _, p := range g.People {
+			if op := g.getDrawOp(p.Position.X, p.Position.Y, op); op != nil {
+				// Draw animation frame.
+				target.DrawImage(g.spritesRunner.GetSubImageXY((p.count/5)%frameCount, 1), op)
+			}
+		}
+	}
+
+	g.drawGraphics(screen, render)
 
 	// Render labels
-	drawLabel := func(x, y float64, label string, col color.Color) {
-		// Calculate the on-screen position of the label.
-		drawX := ((x*tileSize)-g.camX)*g.camScale + cx
-		drawY := ((y*tileSize)+g.camY)*g.camScale + cy
-		screen.Set(int(drawX), int(drawY), col)
-		text.Draw(screen, label, g.Font, int(drawX), int(drawY), col)
-	}
 
 	// Generate a color gradient for the happiness.
 	colorGrad := colorgrad.Rainbow()
@@ -445,13 +456,15 @@ func (g *World) Draw(screen *ebiten.Image) {
 
 	// Draw the name of the person with a color based on their happiness.
 	for _, p := range g.People {
-		drawLabel(p.Position.X, p.Position.Y, p.Name, colsHappiness[int((p.Happiness()+100)/10)])
+		g.drawLabel(screen, p.Position.X, p.Position.Y, p.Name, colsHappiness[int((p.Happiness()+100)/10)])
 	}
 
 	// Draw the name of the object.
 	for i, p := range g.Objects {
-		drawLabel(p.Position.X, p.Position.Y, p.Name, colsEntity[i+len(g.People)])
+		g.drawLabel(screen, p.Position.X, p.Position.Y, p.Name, colsEntity[i+len(g.People)])
 	}
+
+	// DRAW DIRECTLY TO SCREEN
 
 	// Print the attributes of each person in the sidebar.
 	sideBar := 200                      // Width of the sidebar.
