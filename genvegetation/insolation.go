@@ -166,6 +166,7 @@ func nppad(image [][]float64, padWidth int, mode string) [][]float64 {
 // :param reflection_coefficient: Float. Fraction of the average energy of the neighbourspixels that the pixel
 // will receive.
 func (i *Insolation) AddReflectionInsolation(reflectionCoefficient float64) {
+	// TODO: Should the reflection coefficient be based on the albedo of the soil?
 	paddedInsolationImage := nppad(i.insolationImage.image, 1, "edge")
 	for y := 1; y < len(paddedInsolationImage)-1; y++ {
 		for x := 1; x < len(paddedInsolationImage[y])-1; x++ {
@@ -199,17 +200,29 @@ func (i *Insolation) CalculateActualInsolation(m *Map, daylightHours int, sunSta
 	i.CalculateInsolationForDaylightHours(m, daylightHours, sunStartElevation, sunStartAzimuth, sunMaxElevation)
 	for y := 0; y < len(i.controller.image_height_map); y++ {
 		for x := 0; x < len(i.controller.image_height_map[y]); x++ {
+			// Get the raw insolation of the pixel.
 			pixelRawInsolation := i.insolationImage.image[y][x]
+
+			// Calculate the losses of the energy due to the atmosphere and cloud coverage.
 			cloudReflectionLoss := pixelRawInsolation * m.biom.cloud_reflection / 100
 			atmosphericAbsorptionLoss := pixelRawInsolation * m.biom.atmospheric_absorption / 100
 			atmosphericDiffusionLoss := pixelRawInsolation * m.biom.atmospheric_diffusion / 100
+			totalLoss := cloudReflectionLoss + atmosphericAbsorptionLoss + atmosphericDiffusionLoss
+
+			// Calculate the albedo of the soil, which indicates how much light will be reflected.
+			// We are interested in how much light will be absorbed, so we need to subtract the albedo from 1.
 			soilId := i.controller.soil_ids_map[y][x]
 			soil := i.controller.SearchSoil(soilId)
 			albedo := soil.albedo
-			i.insolationImage.image[y][x] = (pixelRawInsolation - cloudReflectionLoss - atmosphericAbsorptionLoss - atmosphericDiffusionLoss) * (1.0 - albedo)
+
+			// Calculate the actual energy of the pixel.
+			i.insolationImage.image[y][x] = (pixelRawInsolation - totalLoss) * (1.0 - albedo)
 		}
 	}
+
+	// Add the insolation by reflection of the neighbour pixels.
 	i.AddReflectionInsolation(reflectionCoefficient)
+
 	return i.insolationImage
 }
 
@@ -334,19 +347,14 @@ func (i *Insolation) CalculateInsolationForDaylightHours(m *Map, daylightHours i
 				i.insolationImage.image[y][x] += i.CalculateRawInsolation(sun, x, y, len(i.controller.image_height_map), m.pixel_size, maxHeight, m.height_conversion)
 			}
 		}
-		if daylightHours%2 == 1 {
+
+		// The sun rises and falls (except for the noon hour).
+		if daylightHours%2 == 1 || hour != daylightHours/2-1 {
+			// Depending on which half of the day we are in, the sun will rise or fall.
 			if hour < daylightHours/2 {
 				sun.elevation += elevationPerHour
 			} else {
 				sun.elevation -= elevationPerHour
-			}
-		} else {
-			if hour != daylightHours/2-1 {
-				if hour < daylightHours/2 {
-					sun.elevation += elevationPerHour
-				} else {
-					sun.elevation -= elevationPerHour
-				}
 			}
 		}
 		sun.azimuth += azimuthPerHour
