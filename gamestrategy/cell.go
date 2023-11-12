@@ -11,14 +11,17 @@ type Cell struct {
 	Features     int64
 }
 
+// Cost returns the cost of occupying (or attacking) this cell.
 func (c *Cell) Cost() float64 {
 	return c.Type.Cost
 }
 
+// Yield returns the amount of resources this cell yields.
 func (c *Cell) Yield() float64 {
-	return resourceYield(c.Features)
+	return resourceYield(c.Features) + c.BaseYield
 }
 
+// IsOccupied returns true if the cell is occupied by a player.
 func (c *Cell) IsOccupied() bool {
 	return c.ControlledBy != nil
 }
@@ -31,17 +34,23 @@ func (c *Cell) Occupy(p *Player) bool {
 	return true
 }
 
+// Type represents the type of a cell.
+// The type determines the cost of occupying the cell and the base yield, as well as the features
+// that can be built on the cell.
+// TODO: Add offensive and defensive modifiers and features.
 type Type struct {
 	Name            string  // Water, Meadow, Forest, Mountain, Desert...
 	Cost            float64 // Occupation cost and multiplier for actions
+	BaseYield       float64 // Base yield for the cell
 	AllowedFeatures int64   // Bitmask of allowed features
 	Color           color.Color
 }
 
 var (
 	TypeCapital = Type{
-		Name: "Capital",
-		Cost: 0.0,
+		Name:      "Capital",
+		Cost:      0.0,
+		BaseYield: 10.0,
 		Color: color.RGBA{
 			R: 0xff,
 			G: 0xff,
@@ -151,7 +160,7 @@ func costToBuild(f int64) float64 {
 }
 
 func (t *Type) CostToBuild(f int64) float64 {
-	return t.Cost*costToBuild(f) - resourceYield(f)
+	return t.Cost * costToBuild(f)
 }
 
 func splitFeatures(f int64) []int64 {

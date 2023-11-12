@@ -6,7 +6,10 @@ import (
 )
 
 func (g *Grid) AddPlayer(p *Player) {
+	p.ID = len(g.Players)
+	log.Printf("Adding player %s with ID %d", p.Name, p.ID)
 	g.Players = append(g.Players, p)
+
 	// Find a random cell to start in that is not occupied
 	for {
 		c := g.Cell(rand.Intn(g.Width), rand.Intn(g.Height))
@@ -21,11 +24,16 @@ func (g *Grid) AddPlayer(p *Player) {
 	}
 
 	// Add AI
-	g.AIs = append(g.AIs, NewAI(p, g))
+	ai := NewAI(p, g)
+	g.AIs = append(g.AIs, ai)
+	g.Messenger.Register(p.ID, ai)
+
+	// TODO: Register with messenger
 	log.Printf("Player %s added to grid", p.Name)
 }
 
 type Player struct {
+	ID   int
 	Name string
 	Gold float64
 }

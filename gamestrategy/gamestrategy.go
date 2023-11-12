@@ -13,6 +13,7 @@ type Grid struct {
 	Players []*Player
 	AIs     []*AI
 	*webpExport
+	*Messenger
 }
 
 func NewGrid(width, height int) *Grid {
@@ -20,6 +21,7 @@ func NewGrid(width, height int) *Grid {
 		Width:      width,
 		Height:     height,
 		webpExport: newWebPExport(width, height),
+		Messenger:  NewMessenger(),
 	}
 	g.Cells = make([]Cell, width*height)
 	// Use noise bands to set the type of each cell
@@ -48,10 +50,15 @@ func NewGrid(width, height int) *Grid {
 	return g
 }
 
-func (g *Grid) Tick() {
+// Tick advances the game by one step. If the game is over, it returns false.
+func (g *Grid) Tick() bool {
 	// Loop over all cells and deduct cost from player
+	playerYield := make(map[*Player]float64)
+	playerCost := make(map[*Player]float64)
 	for _, c := range g.Cells {
 		if c.ControlledBy != nil {
+			playerYield[c.ControlledBy] += c.Yield()
+			playerCost[c.ControlledBy] += c.Cost()
 			c.ControlledBy.Gold += c.Yield() - c.Cost()
 		}
 	}
@@ -60,17 +67,21 @@ func (g *Grid) Tick() {
 
 	// AI actions
 	for _, ai := range g.AIs {
-		log.Println("AI tick for player", ai.Player.Name, "with gold", ai.Player.Gold)
+		log.Println("AI tick for player", ai.Player.Name, "with gold", ai.Player.Gold, "and yield", playerYield[ai.Player], "and cost", playerCost[ai.Player])
 		ai.Act()
 	}
 
 	// Check who is bankrupt
+	var bankrupt int
 	for _, p := range g.Players {
 		if p.Gold < 0 {
 			log.Printf("Player %s is bankrupt!", p.Name)
+			bankrupt++
 		}
 	}
+
 	g.storeWebPFrame()
+	return bankrupt < len(g.Players)
 }
 
 func (g *Grid) Cell(x, y int) *Cell {

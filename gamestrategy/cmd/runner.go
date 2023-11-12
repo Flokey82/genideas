@@ -13,8 +13,10 @@ func main() {
 	g.AddPlayer(gamestrategy.NewPlayer("Player 2"))
 	g.AddPlayer(gamestrategy.NewPlayer("Player 3"))
 
-	for i := 0; i < 1000; i++ {
-		g.Tick()
+	for i := 0; i < 4000; i++ {
+		if !g.Tick() {
+			break
+		}
 	}
 
 	g.ExportWebp("test.webp")
