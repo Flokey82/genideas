@@ -51,13 +51,13 @@ func (sphere *FibonacciSphere) FindNearestNeighbors(index int) (above, below, le
 	// to the index point than the step size. It will then return the index
 	// of that point.
 	findClosest := func(index, candidate int) int {
-		// Calculate distance between index and candidate.
-		distance := sphere.EuclideanDistance(index, candidate)
+		// Calculate distance between index and candidate (just use the square, which is faster)
+		distance := sphere.EuclideanDistanceSquare(index, candidate)
 
 		for _, dir := range []int{1, -1} {
 			// Now search until distance increases.
 			for idx := candidate + dir; idx >= 0 && idx < sphere.numPoints; idx += dir {
-				newDistance := sphere.EuclideanDistance(index, idx)
+				newDistance := sphere.EuclideanDistanceSquare(index, idx)
 				if newDistance > distance {
 					break
 				}
@@ -73,14 +73,14 @@ func (sphere *FibonacciSphere) FindNearestNeighbors(index int) (above, below, le
 
 	// TODO: Allow up to two results above and below each.
 	// var above2 int
-	// if sphere.euclideanDistance(index, above+1) < sphere.euclideanDistance(index, above-1) {
+	// if sphere.EuclideanDistanceSquare(index, above+1) < sphere.EuclideanDistanceSquare(index, above-1) {
 	// 	above2 = above+1
 	// } else {
 	// 	above2 = above-1
 	// }
 	//
 	// var below2 int
-	// if sphere.euclideanDistance(index, below+1) < sphere.euclideanDistance(index, below-1) {
+	// if sphere.EuclideanDistanceSquare(index, below+1) < sphere.EuclideanDistanceSquare(index, below-1) {
 	// 	below2 = below+1
 	// } else {
 	// 	below2 = below-1
@@ -93,6 +93,12 @@ func (sphere *FibonacciSphere) EuclideanDistance(index1, index2 int) float64 {
 	x1, y1, z1 := sphere.IndexToCoordinates(index1)
 	x2, y2, z2 := sphere.IndexToCoordinates(index2)
 	return math.Sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2) + (z1-z2)*(z1-z2))
+}
+
+func (sphere *FibonacciSphere) EuclideanDistanceSquare(index1, index2 int) float64 {
+	x1, y1, z1 := sphere.IndexToCoordinates(index1)
+	x2, y2, z2 := sphere.IndexToCoordinates(index2)
+	return (x1-x2)*(x1-x2) + (y1-y2)*(y1-y2) + (z1-z2)*(z1-z2)
 }
 
 func (sphere *FibonacciSphere) GreatArcDistance(index1, index2 int) float64 {
