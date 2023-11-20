@@ -114,8 +114,14 @@ func (sphere *FibonacciSphere) FindNearestNeighbors(index int) (above, below, le
 	// Estimate neighbors based on circumference and step size
 	above = index + sphere.circumferenceSteps
 	below = index - sphere.circumferenceSteps
-	left = index - 1
-	right = index + 1
+
+	// TODO: This depends on the period of the spiral. Right now we alternate
+	// using math.Pi, which alternates between + and - 180 (ish) degrees.
+	// We should make the period configurable... so that we, for example
+	// can build up 3 spirals with 120 degrees between them or one spiral
+	// with 360 degrees.
+	left = index - 2
+	right = index + 2
 
 	// Refine nearest neighbors using Euclidean distance for above and below.
 	// This function will search starting from the candidate index in the
@@ -145,17 +151,17 @@ func (sphere *FibonacciSphere) FindNearestNeighbors(index int) (above, below, le
 
 	// TODO: Allow up to two results above and below each.
 	// var above2 int
-	// if sphere.EuclideanDistanceSquare(index, above+1) < sphere.EuclideanDistanceSquare(index, above-1) {
-	// 	above2 = above+1
+	// if sphere.EuclideanDistanceSquare(index, above+2) < sphere.EuclideanDistanceSquare(index, above-2) {
+	// 	above2 = above+2
 	// } else {
-	// 	above2 = above-1
+	// 	above2 = above-2
 	// }
 	//
 	// var below2 int
-	// if sphere.EuclideanDistanceSquare(index, below+1) < sphere.EuclideanDistanceSquare(index, below-1) {
-	// 	below2 = below+1
+	// if sphere.EuclideanDistanceSquare(index, below+2) < sphere.EuclideanDistanceSquare(index, below-2) {
+	// 	below2 = below+2
 	// } else {
-	// 	below2 = below-1
+	// 	below2 = below-2
 	// }
 
 	return above, below, left, right
