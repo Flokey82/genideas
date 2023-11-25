@@ -30,3 +30,7 @@ genvegetation/cmd/default_insolation_image.png
 genvegetation/cmd/default_edaphic_image_angles.png
 genvegetation/cmd/default_edaphic_image.png
 simhydrology/cmd/runner
+genfibonaccisphere/cmd/runner
+genstatblock5e/cmd/runner
+genclutter/cmd/runner
+simciv/cmd/runner
