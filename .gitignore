@@ -29,3 +29,4 @@ genvegetation/cmd/default_orographic_normals.png
 genvegetation/cmd/default_insolation_image.png
 genvegetation/cmd/default_edaphic_image_angles.png
 genvegetation/cmd/default_edaphic_image.png
+simhydrology/cmd/runner
