@@ -1,17 +1,15 @@
 package main
 
 import (
-	"fmt"
+	"log"
 
 	"github.com/Flokey82/genideas/simciv"
+	"github.com/hajimehoshi/ebiten"
 )
 
 func main() {
-	m := simciv.NewMap(100, 100, 0)
-	for i := 0; i < 30000; i++ {
-		m.Tick()
-	}
-	for _, s := range m.Settlements {
-		fmt.Println(s)
+	g := simciv.NewGame(100, 100)
+	if err := ebiten.RunGame(g); err != nil {
+		log.Fatal(err)
 	}
 }
