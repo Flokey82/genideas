@@ -45,6 +45,11 @@ Right now, it just draws an area of effect around the mouse cursor and particles
 
 ![alt text](/genasciiparticles/images/ice.png "ice")
 
+## genlandmarknames
+
+This is a small library to generate random landmark names. It uses randomized pairs of words to generate the names.
+At some point, I'll port this to my template based name / text generator, which will allow for more complex names.
+
 ## gennormalmap
 
 Crude port of https://github.com/8bittree/normal_heights to Go :)
@@ -77,9 +82,8 @@ Input (heightmap and soil map):
 
 ![alt text](/genvegetation/images/probability.png "probability")
 
-# noiserand
+## noiserand
 
 The `noiserand` package implements a random number generator that is based on multidimensional noise, using one of the dimensions as a seed, which allows slight alterations to the seed to slightly alter the generated sequence.
 
 Moved to: https://github.com/Flokey82/noiserand
-

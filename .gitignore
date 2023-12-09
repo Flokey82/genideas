@@ -34,3 +34,4 @@ genfibonaccisphere/cmd/runner
 genstatblock5e/cmd/runner
 genclutter/cmd/runner
 simciv/cmd/runner
+genlandmarknames/cmd/runner
