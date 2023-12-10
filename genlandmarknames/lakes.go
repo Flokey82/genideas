@@ -23,14 +23,15 @@ var LakeNameConfig = &genstory.TextConfig{
 	TokenPools: map[string][]string{
 		TokenAdj:        LakeAdjectives,
 		TokenSubject:    LakeSubjects,
-		TokenAdjGen:     DangerGenitivePhraseAdjLakes,
-		TokenSubjectGen: DangerGenitivePhraseSubject,
+		TokenAdjGen:     GenitivePhraseAdjNegWaterStill,
+		TokenSubjectGen: GenitivePhraseSubject,
 	},
 	TokenIsMandatory: map[string]bool{},
 	Tokens:           []string{TokenAdj, TokenSubject, TokenAdjGen, TokenSubjectGen, TokenPlace},
 	Templates:        LakeTemplates,
 	UseAllProvided:   true,
 	UseAlliteration:  false,
+	Title:            true,
 }
 
 var LakeAdjectives = []string{
@@ -62,27 +63,9 @@ var LakeSubjects = []string{
 	"pit",
 }
 
-var DangerGenitivePhraseAdjLakes = []string{
-	"lost",
-	"petrified",
-	"forgotten",
-	"sunken",
-	"abandoned",
-	"flushed",
-	"rotten",
-	"decaying",
-	"rotting",
-	"sinking",
-	"dark",
-	"black",
-	"murky",
-	"deep",
-	"bottomless",
-}
-
 var LakeDangerousSuffix = WordPair{
-	A: DangerGenitivePhraseAdjLakes,
-	B: DangerGenitivePhraseSubject,
+	A: GenitivePhraseAdjNegWaterStill,
+	B: GenitivePhraseSubject,
 }
 
 // NewLakeGenerator returns a new generator for lake names.

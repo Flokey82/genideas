@@ -38,6 +38,6 @@ func NewDesertGenerator(seed int64) *BasicGenerator {
 		DesertSubjects,
 		WordPair{
 			A: DangerGenitivePhraseAdjDesert,
-			B: DangerGenitivePhraseSubject,
+			B: GenitivePhraseSubject,
 		})
 }

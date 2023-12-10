@@ -40,23 +40,13 @@ var SwampSubjects = []string{
 	"puddles",
 }
 
-// DangerGenitivePhraseAdjSwamp returns a danger genitive phrase adjective for swamps.
-var DangerGenitivePhraseAdjSwamp = []string{
-	"drowned",
-	"lost",
-	"sunken",
-	"forgotten",
-	"abandoned",
-	"flushed",
-}
-
 // NewSwampGenerator returns a new generator for swamp names.
 func NewSwampGenerator(seed int64) *BasicGenerator {
 	return NewBasicGenerator(seed,
 		SwampAdjectives,
 		SwampSubjects,
 		WordPair{
-			A: DangerGenitivePhraseAdjSwamp,
-			B: DangerGenitivePhraseSubject,
+			A: GenitivePhraseAdjNegWaterStill,
+			B: GenitivePhraseSubject,
 		})
 }

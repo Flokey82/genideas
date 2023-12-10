@@ -16,6 +16,7 @@ type NameGenerators struct {
 	Swamp         *BasicGenerator
 	River         *RiverGenerator
 	Lake          *BasicGenerator
+	Plains        *BasicGenerator
 }
 
 // NewNameGenerators returns a new NameGenerators.
@@ -28,108 +29,8 @@ func NewNameGenerators(seed int64) *NameGenerators {
 		Swamp:         NewSwampGenerator(seed),
 		River:         NewRiverGenerator(seed),
 		Lake:          NewLakeGenerator(seed),
+		Plains:        NewPlainsGenerator(seed),
 	}
-}
-
-// LargeAreaSuffix is a list of suffixes suitable for large areas.
-var LargeAreaSuffix = []string{
-	"land",
-	"plains",
-	"expanse",
-	"region",
-}
-
-// FertileLandSuffix is a list of suffixes suitable for fertile land.
-var FertileLandPrefix = []string{
-	"green",
-	"lush",
-	"bountiful",
-	"fruitful",
-	"rich",
-	"abundant",
-	"fertile",
-}
-
-// DangerousTerrainDescriptor returns a random descriptor for a dangerous terrain.
-// This suffix is supposed to be used with "... of ...".
-var DangerousTerrainDescriptor = []string{
-	"death",
-	"doom",
-	"despair",
-	"darkness",
-	"evil",
-	"chaos",
-	"madness",
-	"loss",
-	"pain",
-	"anguish",
-	"terror",
-	"horror",
-	"lost souls",
-	"the dead",
-	"the damned",
-	"the cursed",
-	"the forsaken",
-	"the lost",
-	"the forgotten",
-	"the abandoned",
-	"the unknown",
-	"the doomed",
-}
-
-// DangerGenitivePhraseAdj is a list of prefixes suitable for dangerous areas.
-var DangerGenitivePhraseAdj = []string{
-	"cursed",
-	"forsaken",
-	"forbidden",
-	"lost",
-	"abandoned",
-	"unknown",
-	"doomed",
-	"haunted",
-	"dark",
-	"evil",
-	"chaotic",
-	"mad",
-	"lost",
-	"lost souls",
-	"the dead",
-	"the damned",
-	"the cursed",
-	"the forsaken",
-	"the lost",
-	"the forgotten",
-	"the abandoned",
-	"the unknown",
-	"the doomed",
-}
-
-// DangerGenitivePhraseSubject is a list of suffixes suitable for dangerous areas.
-var DangerGenitivePhraseSubject = []string{
-	"hope",
-	"souls",
-	"fate",
-	"dreams",
-	"love",
-	"life",
-	"joy",
-	"peace",
-	"serenity",
-	"calm",
-	"tranquility",
-	"corpses",
-	"heroes",
-	"villains",
-	"princes",
-	"princesses",
-	"queens",
-	"kings",
-	"emperors",
-	"empresses",
-	"lords",
-	"ladies",
-	"knights",
-	"lovers",
 }
 
 // NewBasicGenerator returns a new generator for basic names.

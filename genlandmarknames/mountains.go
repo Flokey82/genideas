@@ -68,7 +68,7 @@ func NewMountainRangeGenerator(seed int64) *BasicGenerator {
 		MountainRangeSubjects,
 		WordPair{
 			A: DangerGenitivePhraseAdjMountain,
-			B: DangerGenitivePhraseSubject,
+			B: GenitivePhraseSubject,
 		})
 }
 
@@ -110,6 +110,6 @@ func NewMountainGenerator(seed int64) *BasicGenerator {
 		MountainSubjects,
 		WordPair{
 			A: DangerGenitivePhraseAdjMountain,
-			B: DangerGenitivePhraseSubject,
+			B: GenitivePhraseSubject,
 		})
 }

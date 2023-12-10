@@ -41,24 +41,13 @@ var ForestSubjects = []string{
 	"thickets",
 }
 
-// DangerGenitivePhraseAdjForest returns a danger genitive phrase adjective for forests.
-var DangerGenitivePhraseAdjForest = []string{
-	"rotten",
-	"lost",
-	"petrified",
-	"forgotten",
-	"abandoned",
-	"consumed",
-	"buried",
-}
-
 // NewForestGenerator returns a new generator for forest names.
 func NewForestGenerator(seed int64) *BasicGenerator {
 	return NewBasicGenerator(seed,
 		ForestAdjectives,
 		ForestSubjects,
 		WordPair{
-			A: DangerGenitivePhraseAdjForest,
-			B: DangerGenitivePhraseSubject,
+			A: GenitivePhraseAdjThicket,
+			B: GenitivePhraseSubject,
 		})
 }
