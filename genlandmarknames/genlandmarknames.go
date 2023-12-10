@@ -15,6 +15,7 @@ type NameGenerators struct {
 	Forest        *BasicGenerator
 	Swamp         *BasicGenerator
 	River         *RiverGenerator
+	Lake          *BasicGenerator
 }
 
 // NewNameGenerators returns a new NameGenerators.
@@ -26,6 +27,7 @@ func NewNameGenerators(seed int64) *NameGenerators {
 		Forest:        NewForestGenerator(seed),
 		Swamp:         NewSwampGenerator(seed),
 		River:         NewRiverGenerator(seed),
+		Lake:          NewLakeGenerator(seed),
 	}
 }
 
@@ -75,8 +77,8 @@ var DangerousTerrainDescriptor = []string{
 	"the doomed",
 }
 
-// DangerousPrefixes is a list of prefixes suitable for dangerous areas.
-var DangerousPrefixes = []string{
+// DangerGenitivePhraseAdj is a list of prefixes suitable for dangerous areas.
+var DangerGenitivePhraseAdj = []string{
 	"cursed",
 	"forsaken",
 	"forbidden",
@@ -102,8 +104,8 @@ var DangerousPrefixes = []string{
 	"the doomed",
 }
 
-// DangerousSuffixB is a list of suffixes suitable for dangerous areas.
-var DangerousSuffixB = []string{
+// DangerGenitivePhraseSubject is a list of suffixes suitable for dangerous areas.
+var DangerGenitivePhraseSubject = []string{
 	"hope",
 	"souls",
 	"fate",

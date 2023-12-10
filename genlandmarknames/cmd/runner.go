@@ -24,4 +24,13 @@ func main() {
 	for i := 0; i < 100; i++ {
 		println(gen.River.Generate(int64(i), i%2 == 0, i%2 == 0))
 	}
+
+	for i := 0; i < 100; i++ {
+		st, err := genlandmarknames.LakeNameConfig.Generate(nil)
+		if err != nil {
+			println(err.Error())
+		} else {
+			println(st.Text)
+		}
+	}
 }

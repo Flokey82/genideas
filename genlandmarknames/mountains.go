@@ -1,7 +1,7 @@
 package genlandmarknames
 
-// MountainPrefix is a list of prefixes suitable for mountains.
-var MountainPrefix = []string{
+// MountainAdjective is a list of prefixes suitable for mountains.
+var MountainAdjective = []string{
 	"rocky",
 	"mountainous",
 	"spiked",
@@ -15,8 +15,37 @@ var MountainPrefix = []string{
 	"crumbling",
 }
 
-// MountainDangerPrefix is a list of prefixes suitable for dangerous mountains.
-var MountainDangerPrefix = []string{
+// MountainRangeSubjects is a list of subjects for mountain ranges.
+var MountainRangeSubjects = []string{
+	"mountains",
+	"teeth",
+	"spikes",
+	"peaks",
+	"rocks",
+	"thorns",
+	"jags",
+	"spurs",
+	"spires",
+	"pinnacles",
+	"stones",
+	"backs",
+	"needles",
+	"nails",
+	"knives",
+	"scythes",
+	"cliffs",
+	"ridges",
+	"sickles",
+	"spikes",
+	"spurs",
+	"spires",
+	"swords",
+	"edges",
+	"pikes",
+}
+
+// DangerGenitivePhraseAdjMountain is a list of prefixes suitable for dangerous mountains.
+var DangerGenitivePhraseAdjMountain = []string{
 	"shattered",
 	"lost",
 	"petrified",
@@ -34,70 +63,53 @@ var MountainDangerPrefix = []string{
 
 // NewMountainRangeGenerator returns a new generator for mountain range names.
 func NewMountainRangeGenerator(seed int64) *BasicGenerator {
-	return NewBasicGenerator(seed, MountainPrefix, []string{
-		"mountains",
-		"teeth",
-		"spikes",
-		"peaks",
-		"rocks",
-		"thorns",
-		"jags",
-		"spurs",
-		"spires",
-		"pinnacles",
-		"stones",
-		"backs",
-		"needles",
-		"nails",
-		"knives",
-		"scythes",
-		"cliffs",
-		"ridges",
-		"sickles",
-		"spikes",
-		"spurs",
-		"spires",
-		"swords",
-		"edges",
-		"pikes",
-	}, WordPair{
-		A: MountainDangerPrefix,
-		B: DangerousSuffixB,
-	})
+	return NewBasicGenerator(seed,
+		MountainAdjective,
+		MountainRangeSubjects,
+		WordPair{
+			A: DangerGenitivePhraseAdjMountain,
+			B: DangerGenitivePhraseSubject,
+		})
+}
+
+// MountainSubjects is a list of subjects for mountains.
+var MountainSubjects = []string{
+	"mountain",
+	"tooth",
+	"spike",
+	"peak",
+	"rock",
+	"thorn",
+	"jag",
+	"spur",
+	"spire",
+	"pinnacle",
+	"stone",
+	"back",
+	"ridge",
+	"crest",
+	"summit",
+	"needle",
+	"nail",
+	"knife",
+	"scythe",
+	"cliff",
+	"sickle",
+	"spike",
+	"spur",
+	"spire",
+	"sword",
+	"edge",
+	"pike",
 }
 
 // NewMountainGenerator returns a new generator for mountain names.
 func NewMountainGenerator(seed int64) *BasicGenerator {
-	return NewBasicGenerator(seed, MountainPrefix, []string{
-		"mountain",
-		"tooth",
-		"spike",
-		"peak",
-		"rock",
-		"thorn",
-		"jag",
-		"spur",
-		"spire",
-		"pinnacle",
-		"stone",
-		"back",
-		"ridge",
-		"crest",
-		"summit",
-		"needle",
-		"nail",
-		"knife",
-		"scythe",
-		"cliff",
-		"sickle",
-		"spike",
-		"spur",
-		"spire",
-		"sword",
-		"edge",
-		"pike",
-	}, WordPair{
-		A: MountainDangerPrefix,
-		B: DangerousSuffixB,
-	})
+	return NewBasicGenerator(seed,
+		MountainAdjective,
+		MountainSubjects,
+		WordPair{
+			A: DangerGenitivePhraseAdjMountain,
+			B: DangerGenitivePhraseSubject,
+		})
 }
