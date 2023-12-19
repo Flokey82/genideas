@@ -4,6 +4,13 @@ This package will provide means to generate cubemap spheres with an arbitrary nu
 
 Right now this is really experimental and is lacking tangent adjustment etc.
 
+## TODO
+
+- [ ] Implement tangent adjustment
+- [ ] Add support for finding (closest) face/cell index based on lat/lon
+- [ ] Make sure coordinate system is aligned with genfibonaccisphere
+- [ ] General feature parity with genfibonaccisphere
+
 Interesting links:
 
 - https://www.redblobgames.com/x/1938-square-tiling-of-sphere/
