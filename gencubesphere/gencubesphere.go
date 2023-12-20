@@ -28,10 +28,12 @@ func NewCubeSphere(numPoints int) *CubeSphere {
 	}
 }
 
+// IndexToFace returns the face of the point on the sphere with the given index.
 func (sphere *CubeSphere) IndexToFace(index int) (face int) {
 	return index / sphere.PointsPerFace
 }
 
+// IndexToCoordinates returns the cartesian coordinates of the point on the sphere with the given index.
 func (sphere *CubeSphere) IndexToCoordinates(index int) (x, y, z float64) {
 	face := sphere.IndexToFace(index)
 
@@ -72,6 +74,7 @@ func (sphere *CubeSphere) ExportWavefrontOBJ(filename string) error {
 	return nil
 }
 
+// IndexToLatLonDeg returns the latitude and longitude of the point on the sphere with the given index.
 func (sphere *CubeSphere) IndexToLatLonDeg(index int) (lat, lon float64) {
 	x, y, z := sphere.IndexToCoordinates(index)
 	// Our coordinate system looks like this:
@@ -137,10 +140,9 @@ func (sphere *CubeSphere) IndexToLatLonDeg(index int) (lat, lon float64) {
 	return lat, lon
 }
 
-/*
-// LatLonDegToIndex returns the index of the point on the sphere that is closest
+// CoordinatesToIndex returns the index of the point on the sphere that is closest
 // to the given latitude and longitude.
-func (sphere *CubeSphere) LatLonDegToIndex(lat, lon float64) int {
+func (sphere *CubeSphere) CoordinatesToIndex(lat, lon float64) int {
 	// Get the face of the given latitude and longitude.
 	face := sphere.LatLonDegToFace(lat, lon)
 
@@ -149,9 +151,9 @@ func (sphere *CubeSphere) LatLonDegToIndex(lat, lon float64) int {
 	// Each face covers 90 degrees longitude.
 	// NOTE: This will change if the tangent adjustment (or a different approach) is implemented.
 	if face == faceFront || face == faceRight || face == faceBack || face == faceLeft {
-		// Calculate the longitude of the point on the face (offset by 45 degrees).
+		// Calculate the longitude of the point on the face.
 		// NOTE: This will change if the tangent adjustment (or a different approach) is implemented.
-		lonOnFace := math.Mod(lon+180+45, 90) - 45
+		lonOnFace := math.Mod(lon+180+45, 90) - 45 // Longitude in -45 - +45 degrees.
 
 		// The position on the face is calculated by taking the lonOnFace and the adjecent side (radius of the
 		// unit sphere, which is 1) and calculating the opposite side length.
@@ -161,17 +163,21 @@ func (sphere *CubeSphere) LatLonDegToIndex(lat, lon float64) int {
 		// Now we calculate the position on the face by adding the opposite side length to the radius of the
 		// unit sphere (which is 1), which is also half of the length of the side of the face.
 		posOnFace := oppositeSide + 1.0
-		log.Println("face:", face, "lonOnFace:", lonOnFace, "oppositeSide:", oppositeSide, "posOnFace:", posOnFace)
 
-		// Now we can get the column by dividing the position on the face by the cell size.
-		column := int((posOnFace + 0.00001) * float64(sphere.PointsPerSide) / 2)
+		// Now we can get the column by multiplying the position on the face (-1 to 1) by the number of points per side
+		// and dividing by 2 (the length of the side of the face is 2).
+		column := int(posOnFace * float64(sphere.PointsPerSide) / 2)
 
-		log.Println("column:", column)
+		// Now we need to calculate the row.
+		latOnFace := lat
 
-		// Now we need to calculate the row, which works the same way as the column.
-		latOnFace := math.Mod(lat+45, 90) - 45
-		oppositeSide = math.Tan(various.DegToRad(latOnFace)) * 1.0
-		posOnFace = oppositeSide + 1.0
+		// Calculate the distance to the cube surface.
+		distToCube := 1 / math.Cos(various.DegToRad(lonOnFace))
+
+		// Calculate the length of the opposite side of the triangle that is formed by the latitude on the face
+		// and the distance to the cube surface.
+		oppositeSide = math.Tan(various.DegToRad(latOnFace)) * distToCube
+		posOnFace = 1 - oppositeSide
 		row := int(posOnFace * float64(sphere.PointsPerSide) / 2)
 
 		// Now we can calculate the index on the face.
@@ -181,11 +187,56 @@ func (sphere *CubeSphere) LatLonDegToIndex(lat, lon float64) int {
 		return sphere.IndexOnFaceToCubeIndex(indexOnFace, face)
 	}
 
-	// TODO: Implement north and south faces.
-	return 0
-}
-*/
+	// Implement north and south faces.
+	// For north and south, latitudes with the same longitude are circles.
+	//
+	// We are essentially projecting from the top / bottom of the sphere to the top / bottom of the cube.
+	// The radius of the circle is the distance from the center of the sphere to the point on the sphere
+	// but projected to the top / bottom of the cube.
+	//
+	// Side view:
+	//				+90 deg lat (north pole)
+	//               |<-->| radius
+	// +-------,-- + | ~ -,,-------+
+	// |   , '     | |   /   ' ,   |
+	// | ,   r = 1 | |  / lat    , |
+	// |,          | | /          ,|
+	// ,           | |/            ,
+	// ,-----------+-+----+--------, +x 0 deg lon
+	var radius float64
+	// We will have to calculate the opposite. We don't know the hypotenuse, but we know the angle and the
+	// adjacent side (radius of the unit sphere, which is 1).
+	if face == faceNorth {
+		radius = math.Tan(various.DegToRad(90 - lat))
+	} else {
+		radius = math.Tan(various.DegToRad(90 + lat))
+	}
 
+	// Now can calculate x and y coordinates on the face.
+	y := math.Cos(various.DegToRad(lon)) * radius
+	x := math.Sin(various.DegToRad(lon)) * radius
+
+	// Now we can calculate the position on the face.
+	posOnFaceX := x + 1.0
+	posOnFaceY := y + 1.0
+
+	// If we are on the south face, we need to flip the y coordinate.
+	if face == faceSouth {
+		posOnFaceY = 2.0 - posOnFaceY
+	}
+
+	// Now we can get the column by multiplying the position on the face (-1 to 1) by the number of points per side
+	// and dividing by 2 (the length of the side of the face is 2).
+	column := int(posOnFaceX * float64(sphere.PointsPerSide) / 2)
+
+	// Now we can get the row by multiplying the position on the face (-1 to 1) by the number of points per side
+	// and dividing by 2 (the length of the side of the face is 2).
+	row := int(posOnFaceY * float64(sphere.PointsPerSide) / 2)
+
+	return sphere.IndexOnFaceToCubeIndex(row*sphere.PointsPerSide+column, face)
+}
+
+// LatLonDegToFace returns the (cube) face of the point on the sphere with the given latitude and longitude.
 func (sphere *CubeSphere) LatLonDegToFace(lat, lon float64) int {
 	// Calculate latitude where north and south faces start at the given longitude.
 	// At 0/180 and +/- 90 degrees, the north and south faces start at +/- 45 degrees latitude.
@@ -217,7 +268,7 @@ func (sphere *CubeSphere) LatLonDegToFace(lat, lon float64) int {
 		//      |_____      _____|
 		//            ------
 		//		       -45
-		lonOnFace := math.Mod(lon+180+45, 90) - 45 // Absolute longitude in -45 - +45 degrees.
+		lonOnFace := math.Mod(lon+180+45, 90) - 45 // Longitude in -45 - +45 degrees.
 
 		// After a long and arduous journey, I finally found the solution to this problem, but
 		// I do not understand why it works or how, I just tried everything I could come up with,
@@ -257,6 +308,7 @@ func (sphere *CubeSphere) LatLonDegToFace(lat, lon float64) int {
 	return faceBack
 }
 
+// IndexToCoordinatesOnFace returns the local 2d coordinates (on the face) of the point with the given index.
 func (sphere *CubeSphere) IndexToCoordinatesOnFace(index int) (x, y float64) {
 	// Calculate the coordinates on the face.
 	x = float64(index%sphere.PointsPerSide) / float64(sphere.PointsPerSide)
@@ -269,6 +321,7 @@ func (sphere *CubeSphere) IndexToCoordinatesOnFace(index int) (x, y float64) {
 	return x, y
 }
 
+// IndexOnFaceToCubeIndex returns the global index of the point on the given face with the given local index.
 func (sphere *CubeSphere) IndexOnFaceToCubeIndex(indexOnFace, face int) (index int) {
 	return indexOnFace + face*sphere.PointsPerFace
 }

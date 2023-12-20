@@ -47,18 +47,20 @@ func TestNeighbors(t *testing.T) {
 		}
 	}
 
+	numPerFace = 300 * 300
+
+	sphere = NewCubeSphere(numPerFace * 6) // 300*300 points per side, 6 faces
+
 	// Check if we can convert between indices and lat/lon.
-	/*
-		for _, wantFace := range []int{faceFront, faceBack, faceLeft, faceRight, faceNorth, faceSouth} {
-			for i := 0; i < numPerFace; i++ {
-				log.Println("Face", wantFace, "index", i)
-				index := sphere.IndexOnFaceToCubeIndex(i, wantFace)
-				lat, lon := sphere.IndexToLatLonDeg(index)
-				gotIndex := sphere.LatLonDegToIndex(lat, lon)
-				if index != gotIndex {
-					t.Errorf("%d: Index issue; got %v, want %v", i, gotIndex, index)
-				}
+	for _, wantFace := range []int{faceFront, faceBack, faceLeft, faceRight, faceNorth, faceSouth} {
+		//wantFace := faceFront
+		for i := 0; i < numPerFace; i++ {
+			index := sphere.IndexOnFaceToCubeIndex(i, wantFace)
+			lat, lon := sphere.IndexToLatLonDeg(index)
+			gotIndex := sphere.CoordinatesToIndex(lat, lon)
+			if index != gotIndex {
+				t.Errorf("%d [%d]: Index issue; got %v, want %v", i, wantFace, gotIndex, index)
 			}
 		}
-	*/
+	}
 }
