@@ -35,6 +35,7 @@ type Map struct {
 	Flux         []float64
 	TileType     []int
 	Root         *Building // The root building, which the settlers will build around.
+	Cemetery     *Building // The cemetery.
 	Buildings    []*Building
 	Construction []*Building
 	Resources    int
@@ -56,7 +57,8 @@ func NewMap(height, width int) *Map {
 		Flux:       make([]float64, height*width),
 		TileType:   make([]int, height*width),
 		Resources:  100,
-		Population: 345,
+		Population: 15,
+		Cemetery:   NewBuilding(0, 0, BuildingTypeCemetery),
 	}
 
 	// Initialize name generation.
@@ -427,11 +429,15 @@ func (m *Map) Tick() {
 	// Add the yields to the resources.
 	m.Resources += yields
 
+	// Advance unoccupied building decay.
+	m.tickBuildings()
+
 	// Advance building construction.
 	m.advanceConstruction()
 
 	// Construct more houses if needed.
-	m.constructMoreHouses()
+	m.tickPeople()
+	// m.constructMoreHouses()
 
 	// Match singles.
 	m.matchSingles()

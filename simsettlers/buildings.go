@@ -1,18 +1,66 @@
 package simsettlers
 
 import (
+	"fmt"
 	"log"
 	"math"
+	"math/rand"
 )
+
+func (m *Map) tickBuildings() {
+	// Any unoccupied buildings have a chance of decaying.
+	for _, b := range m.Buildings {
+		if !b.IsOccupied() && b.Condition > 0 {
+			if rand.Intn(100) < 10 {
+				b.Condition--
+			}
+		}
+	}
+}
 
 func (m *Map) advanceConstruction() {
 	var stillBuilding []*Building
+
 	// Build new buildings.
 	for _, b := range m.Construction {
-		b.Remaining--
-		if b.Remaining == 0 {
+		if b.AdvanceConstruction() {
 			log.Printf("Finished building %v", b)
 			m.Buildings = append(m.Buildings, b)
+
+			// Go through the new owners and assign them to the building.
+			// TODO: This doesn't make sense for anything but houses.
+			if b.Type != BuildingTypeHouse {
+				continue
+			}
+
+			// Assign the new home to the owners.
+			for _, p := range b.Owners {
+				// Assign the new home to the person.
+				prevHome := p.Home
+				p.SetHome(b)
+
+				// Remove the building from the constructing list.
+				// TODO: Factor this out into a function.
+				for i, c := range p.Constructing {
+					if c == b {
+						p.Constructing = append(p.Constructing[:i], p.Constructing[i+1:]...)
+						break
+					}
+				}
+
+				for _, c := range p.Children {
+					// Check if the child still lives with the parents.
+					// If so, move the child to the new home.
+					// TODO:
+					// - What if the child doesn't want to move?
+					// - Maybe they want to stay with the grandparents?
+					// - What if the child has a spouse living with them?
+					// - What if the child has children living with them?
+					if c.Home == prevHome {
+						c.SetHome(b)
+					}
+				}
+			}
 		} else {
 			log.Printf("Still building %v", b)
 			stillBuilding = append(stillBuilding, b)
@@ -50,9 +98,14 @@ func (m *Map) constructMoreHouses() {
 
 // Building represents a building on the map.
 type Building struct {
-	X, Y      int
-	Remaining int
-	Type      string
+	X, Y      int       // position on the map
+	BuiltDay  int       // day the building was built
+	BuiltYear int       // year the building was built
+	Remaining int       // ticks until construction is complete
+	Condition int       // condition of the building
+	Type      string    // building type
+	Owners    []*Person // people who own the building
+	Occupants []*Person // people who live in the building
 }
 
 // NewBuilding creates a new building of the given type at the given position.
@@ -61,6 +114,7 @@ func NewBuilding(x, y int, t string) *Building {
 		X:         x,
 		Y:         y,
 		Remaining: buildingCosts[t], // The number of ticks remaining until the building is finished.
+		Condition: 100,              // The condition of the building.
 		Type:      t,
 	}
 }
@@ -68,8 +122,37 @@ func NewBuilding(x, y int, t string) *Building {
 // AddBuilding adds a new building to the map.
 func (m *Map) AddBuilding(x, y int, t string) *Building {
 	b := NewBuilding(x, y, t)
+	b.BuiltDay = m.Day
+	b.BuiltYear = m.Year
 	m.Construction = append(m.Construction, b)
 	return b
+}
+
+// PurchasePrice returns the purchase price of the building.
+func (b *Building) PurchasePrice() int {
+	return int(float64(buildingCosts[BuildingTypeHouse]) * float64(b.Condition) / 100.0)
+}
+
+// String returns a string representation of the building.
+func (b *Building) String() string {
+	return fmt.Sprintf("%v at (%v, %v cond %d)", b.Type, b.X, b.Y, b.Condition)
+}
+
+// AdvanceConstruction advances the construction of the given building by one tick
+// and returns true if the building is finished.
+func (b *Building) AdvanceConstruction() bool {
+	b.Remaining--
+	return b.Remaining == 0
+}
+
+// IsOccupied returns true if the building is occupied.
+func (b *Building) IsOccupied() bool {
+	return len(b.Occupants) > 0
+}
+
+// IsOwned returns true if the building is owned.
+func (b *Building) IsOwned() bool {
+	return len(b.Owners) > 0
 }
 
 // Yield returns the resource yield of the given building in a tick.
@@ -77,9 +160,57 @@ func (b *Building) Yield() int {
 	return buildingYield[b.Type]
 }
 
+// AddOccupant adds the given person to the occupants list of the building (if not already present).
+func (b *Building) AddOccupant(p *Person) {
+	for _, o := range b.Occupants {
+		if o == p {
+			return
+		}
+	}
+	b.Occupants = append(b.Occupants, p)
+}
+
+// RemoveOccupant removes the given person from the occupants list of the building.
+func (b *Building) RemoveOccupant(p *Person) {
+	for i, o := range b.Occupants {
+		if o == p {
+			b.Occupants = append(b.Occupants[:i], b.Occupants[i+1:]...)
+			break
+		}
+	}
+}
+
+// AddOwner adds the given person to the owners list of the building (if not already present).
+func (b *Building) AddOwner(p *Person) {
+	for _, o := range b.Owners {
+		if o == p {
+			return
+		}
+	}
+	b.Owners = append(b.Owners, p)
+	p.Owns = append(p.Owns, b)
+}
+
+// RemoveOwner removes the given person from the owners list of the building.
+func (b *Building) RemoveOwner(p *Person) {
+	for i, o := range b.Owners {
+		if o == p {
+			b.Owners = append(b.Owners[:i], b.Owners[i+1:]...)
+			break
+		}
+	}
+	for i, o := range p.Owns {
+		if o == b {
+			p.Owns = append(p.Owns[:i], p.Owns[i+1:]...)
+			break
+		}
+	}
+}
+
 const (
-	BuildingTypeMarket = "market"
-	BuildingTypeHouse  = "house"
+	BuildingTypeMarket   = "market"
+	BuildingTypeHouse    = "house"
+	BuildingTypeCemetery = "cemetery"
 )
 
 var buildingCosts = map[string]int{
