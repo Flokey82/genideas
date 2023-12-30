@@ -69,33 +69,6 @@ func (m *Map) advanceConstruction() {
 	m.Construction = stillBuilding
 }
 
-func (m *Map) constructMoreHouses() {
-	// Check if we have enough housing capacity.
-	// TODO: Instead, let individual settlers decide if they want to build a house or live with their parents.
-	// The parents might also decide to expand their house, increasing the housing capacity.
-	gotCap := m.getHousingCapacity()
-	if gotCap < m.Population {
-		// We need to build more houses (if we can afford it).
-		theoCap := m.getTheoreticalHousingCapacity()
-		if theoCap < m.Population {
-			if m.Resources >= buildingCosts[BuildingTypeHouse] {
-				// TODO: Find a suitable location for the house.
-				best, score := m.getHighestHouseFitness()
-				if !math.IsInf(score, -1) {
-					log.Printf("Building a house")
-					// Which is close to the market, but not too close.
-					m.AddBuilding(best%m.Width, best/m.Width, BuildingTypeHouse)
-					m.Resources -= buildingCosts[BuildingTypeHouse]
-				} else {
-					log.Printf("No suitable location for a house found")
-				}
-			} else {
-				log.Printf("Not enough resources to build a house")
-			}
-		}
-	}
-}
-
 // Building represents a building on the map.
 type Building struct {
 	X, Y      int       // position on the map
@@ -252,78 +225,102 @@ func distanceToBuilding(x, y int, b *Building) float64 {
 	return math.Sqrt(float64((x-b.X)*(x-b.X) + (y-b.Y)*(y-b.Y)))
 }
 
-func (m *Map) calcFitnessScoreHouse() []float64 {
+// fitnessScoreMarketProximity returns the fitness score for any point on the map as a value between 0 and 1.
+func (m *Map) fitnessScoreMarketProximity(i int) float64 {
+	// Add distance to the market. (closer is better)
+	x := i % m.Width
+	y := i / m.Width
+	return 1 - 1.0/(1.0+distanceToBuilding(x, y, m.Root))
+}
+
+func (m *Map) fitnessScoreBuildingProximity(i int, buildings []*Building) float64 {
+	if len(buildings) == 0 {
+		return -1
+	}
+
+	// Get distance to the closest house.
+	x := i % m.Width
+	y := i / m.Width
+	dist := math.Inf(1)
+	for _, b := range buildings {
+		dist = min(dist, distanceToBuilding(x, y, b))
+	}
+	return dist
+}
+
+func (m *Map) fitnessScoreFlux(i int) float64 {
+	if m.Flux[i] > fluxRiverThreshold {
+		// This cell is not suitable, can't build on water.
+		return -1
+	}
+
+	// Lower flux is better.
+	return 1 - m.Flux[i]
+}
+
+func (m *Map) calcFitnessScoreHouse(closerIsBetter bool) []float64 {
+	// If closerIsBetter is true, the fitness score will be higher for cells that are closer to other houses.
+	// This way, if a person isn't social, they can choose to live further away from other people.
+
 	// Calculate the fitness score for each point.
 	// We want the lowest flux in the cell, proximity to the market, and proximity to other houses,
 	// but not too close. If there is already a house in the cell, the cell is not suitable.
 	fitness := make([]float64, len(m.Flux))
-Loop:
+	for i := range fitness {
+		fitness[i] = -1
+	}
 	for i := range fitness {
 		// Can't build on water.
-		if m.Flux[i] > fluxRiverThreshold {
+		if m.fitnessScoreFlux(i) == -1 {
 			// This cell is not suitable.
-			fitness[i] = math.Inf(-1)
 			continue
 		}
+		var fit float64
 
 		// Lower flux is better.
 		// fitness[i] = -m.Flux[i]
 
 		// Similar elevation to the market is better.
-		fitness[i] -= 1 - 1.0/(1.0+math.Abs(m.Elevation[i]-m.Elevation[m.Root.X+m.Root.Y*m.Width]))
+		fit += 1.0 / (1.0 + math.Abs(m.Elevation[i]-m.Elevation[m.Root.X+m.Root.Y*m.Width]))
 
 		// Add distance to the market. (closer is better)
 		x := i % m.Width
 		y := i / m.Width
-		fitness[i] += 1 - 1.0/(1.0+distanceToBuilding(x, y, m.Root))
-
-		// TODO: No direct neighbors.
-
-		// Add distance to other houses. (further away is better)
-		for _, b := range m.Buildings {
-			// Check if the building is in the current cell.
-			if b.X == x && b.Y == y {
-				// This cell is not suitable.
-				fitness[i] = math.Inf(-1)
-				continue Loop
-			}
-			if b.Type == BuildingTypeHouse {
-				distToBuild := distanceToBuilding(x, y, b)
-
-				// Can't build too close to another house.
-				if distToBuild < 2.5 {
-					// Too close to another house.
-					fitness[i] = math.Inf(-1)
-					continue Loop
-				}
-				// fitness[i] += 1.0 / (1.0 + distToBuild)
-			}
-
-			// TODO: We should prefer staying at the same river bank.
+		if distToBuild := distanceToBuilding(x, y, m.Root); distToBuild < 2.5 {
+			continue // Too close to the market.
+		} else {
+			fit += 1.0 / (1.0 + distToBuild)
 		}
+		// Add distance to other houses. (further away is better)
+		if distToBuild := m.fitnessScoreBuildingProximity(i, m.Buildings); distToBuild >= 0 {
+			// No direct neighbors.
+			if distToBuild < 2.5 {
+				continue // Too close to another house.
+			} else {
+				if closerIsBetter {
+					fit += 1.0 / (1.0 + distToBuild)
+				} else {
+					fit += 1.0 - 1.0/(1.0+distToBuild)
+				}
+			}
+		}
+
+		// TODO: We should prefer staying at the same river bank.
 
 		// Check for construction sites.
 		// TODO: Merge with the loop above.
-		for _, b := range m.Construction {
-			// Check if the building is in the current cell.
-			if b.X == x && b.Y == y {
-				// This cell is not suitable.
-				fitness[i] = math.Inf(-1)
-				continue Loop
-			}
-			if b.Type == BuildingTypeHouse {
-				distToBuild := distanceToBuilding(x, y, b)
-
-				// Can't build too close to another house.
-				if distToBuild < 2.5 {
-					// Too close to another house.
-					fitness[i] = math.Inf(-1)
-					continue Loop
+		if distToBuild := m.fitnessScoreBuildingProximity(i, m.Construction); distToBuild >= 0 {
+			// No direct neighbors.
+			if distToBuild < 2.5 {
+				continue // Too close to another house under construction.
+			} else {
+				if closerIsBetter {
+					fit += 1.0 / (1.0 + distToBuild)
+				} else {
+					fit += 1.0 - 1.0/(1.0+distToBuild)
 				}
-				// fitness[i] += 1.0 / (1.0 + distToBuild)
 			}
 		}
-
 		// Add distance to the border of the map.
 		// NOTE: Yuk, this is a hack. We should use a proper distance function.
 		x -= m.Width / 2
@@ -331,13 +328,15 @@ Loop:
 
 		// Now invert the distance, so that the center of the map has the highest score.
 		distVal := math.Pow((1.0 - 1.0/(1.0+math.Sqrt(float64(x*x+y*y)))), 2)
-		fitness[i] -= distVal
+		fit += 1 - distVal
+
+		fitness[i] = fit
 	}
 	return fitness
 }
 
-func (m *Map) getHighestHouseFitness() (int, float64) {
-	fitness := m.calcFitnessScoreHouse()
+func (m *Map) getHighestHouseFitness(closerIsBetter bool) (int, float64) {
+	fitness := m.calcFitnessScoreHouse(closerIsBetter)
 	best := 0
 	for i := range fitness {
 		if fitness[i] > fitness[best] {

@@ -97,7 +97,7 @@ func NewMap(height, width int) *Map {
 
 func (m *Map) genElevation() {
 	// Generate a slope.
-	genSlope := genheightmap.GenSlope(vectors.Vec2{float64(-m.Width), float64(-m.Height)})
+	genSlope := genheightmap.GenSlope(vectors.Vec2{X: float64(-m.Width), Y: float64(-m.Height)})
 	for x := 0; x < m.Width; x++ {
 		for y := 0; y < m.Height; y++ {
 			m.Elevation[x+y*m.Width] = 0.0001 * genSlope(float64(x), float64(y))
@@ -106,12 +106,12 @@ func (m *Map) genElevation() {
 
 	// Generate two mountain ranges that form a diagonal valley.
 	genMountain1 := genheightmap.GenMountainRange(
-		vectors.Vec2{float64(m.Width) * 3 / 3, float64(m.Height) * 1 / 3},
-		vectors.Vec2{0, float64(m.Height) * 3 / 3},
+		vectors.Vec2{X: float64(m.Width) * 3 / 3, Y: float64(m.Height) * 1 / 3},
+		vectors.Vec2{X: 0, Y: float64(m.Height) * 3 / 3},
 		15, 30.0, 0.1, 5.0, true)
 	genMountain2 := genheightmap.GenMountainRange(
-		vectors.Vec2{float64(m.Width) * 2 / 3, 0},
-		vectors.Vec2{0, float64(m.Height) * 2 / 3},
+		vectors.Vec2{X: float64(m.Width) * 2 / 3, Y: 0},
+		vectors.Vec2{X: 0, Y: float64(m.Height) * 2 / 3},
 		15, 30.0, 0.1, 5.0, true)
 
 	for x := 0; x < m.Width; x++ {
@@ -305,7 +305,8 @@ func (m *Map) ExportPNG(filename string) error {
 
 	// Calculate the fitness score for each point.
 	fs := m.calcFitnessScore()
-	fs = m.calcFitnessScoreHouse()
+	fs = m.calcFitnessScoreHouse(false)
+	// normalize(fs)
 	fs = m.Elevation
 	//fs = m.Flux
 	//

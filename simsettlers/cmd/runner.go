@@ -33,28 +33,14 @@ func main() {
 
 	// Log all people and their home.
 	for _, p := range m.RealPop {
-		if p.Home != nil {
-			fmt.Printf("%v\n", p)
-		} else {
-			fmt.Printf("%v (homeless)\n", p)
-			// Print parents and where they live.
-			if p.Father != nil {
-				fmt.Printf("\tFather: %v\n", p.Father)
-				if p.Father.Home != nil {
-					fmt.Printf("\t\tHome: %v\n", p.Father.Home)
-				}
-			} else {
-				fmt.Printf("\tFather: unknown\n")
-			}
-			if p.Mother != nil {
-				fmt.Printf("\tMother: %v\n", p.Mother)
-				if p.Mother.Home != nil {
-					fmt.Printf("\t\tHome: %v\n", p.Mother.Home)
-				}
-			} else {
-				fmt.Printf("\tMother: unknown\n")
-			}
+		str := p.String()
+		if p.Home == nil {
+			str += " (homeless)"
 		}
+		if p.Job == simsettlers.JobTypeUnemployed {
+			str += " (unemployed)"
+		}
+		fmt.Println(str)
 	}
 
 	// Log all the people in the cemetery.

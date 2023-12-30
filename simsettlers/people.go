@@ -10,6 +10,50 @@ import (
 	"github.com/Flokey82/go_gens/gameconstants"
 )
 
+type Goal uint32
+
+func (g Goal) IsSet(sg Goal) bool {
+	return g&sg == sg
+}
+
+func (g *Goal) String() string {
+	// TODO: Make it a nice short string, like permissions in Linux.
+	var str string
+	for i := 0; i < 8; i++ {
+		if g.IsSet(1 << i) {
+			switch Goal(1 << i) {
+			case GoalChildhoodSocialize:
+				str += "S"
+			case GoalAdultPartner:
+				str += "P"
+			case GoalAdultHome:
+				str += "H"
+			case GoalAdultChildren:
+				str += "C"
+			case GoalAdultJob:
+				str += "J"
+			default:
+				str += "?"
+			}
+		} else {
+			str += "-"
+		}
+	}
+	return str
+}
+
+const (
+	// TODO: Childhood goals.
+	GoalChildhoodSocialize Goal = 1 << 0
+	// TODO: Teenage goals.
+	// TODO: Adult goals.
+	// TODO: Elderly goals.
+	GoalAdultPartner  Goal = 1 << 1
+	GoalAdultHome     Goal = 1 << 2
+	GoalAdultChildren Goal = 1 << 3
+	GoalAdultJob      Goal = 1 << 4
+)
+
 // Person represents a person in the village.
 // TODO:
 // - Add a personality.
@@ -21,8 +65,10 @@ type Person struct {
 	Birthday     int
 	Age          int
 	Gender       int
-	Pregnant     int // The number of days the person will still be pregnant.
-	Resources    int // The amount of resources the person has.
+	Pregnant     int     // The number of days the person will still be pregnant.
+	Resources    int     // The amount of resources the person has.
+	Job          JobType // The job of the person.
+	Goals        Goal    // The goals of the person.
 	Dead         bool
 	Home         *Building   // The home of the person.
 	Constructing []*Building // The building the person is currently constructing. TODO: Allow multiple construction projects.
@@ -111,6 +157,34 @@ func (p *Person) isMarried() bool {
 	return p.Spouse != nil
 }
 
+func (p *Person) assignChildhoodGoals() {
+	if rand.Intn(100) < 90 {
+		p.Goals |= GoalChildhoodSocialize
+	}
+}
+
+func (p *Person) assignAdultGoals() {
+	// TODO:
+	// - Personality matters.
+	// - Also parents matter.
+	// If both parents have a trait, the chance of the child having it is higher.
+	if rand.Intn(100) < 90 {
+		p.Goals |= GoalAdultPartner
+	}
+	if rand.Intn(100) < 90 {
+		p.Goals |= GoalAdultHome
+	}
+	if rand.Intn(100) < 90 {
+		p.Goals |= GoalAdultChildren
+	}
+	if rand.Intn(100) < 90 {
+		p.Goals |= GoalAdultJob
+	}
+}
+
+func (p *Person) assignElderlyGoals() {
+}
+
 const numDaysPregnant = 270
 
 const (
@@ -132,6 +206,12 @@ func (m *Map) addNRandomPeople(n int) {
 		} else {
 			p.FirstName = m.firstGen[0].String()
 		}
+
+		// TODO: Fix assignment of goals.
+		p.assignChildhoodGoals()
+		p.assignAdultGoals()
+		// p.assignElderlyGoals()
+
 		m.RealPop = append(m.RealPop, p)
 	}
 }
@@ -145,7 +225,17 @@ func (m *Map) agePop() {
 		}
 		if p.Birthday == m.Day {
 			p.Age++
+
+			// Check if we have to decide life goals.
+			if p.Age == 1 {
+				p.assignChildhoodGoals()
+			} else if p.Age == 18 {
+				p.assignAdultGoals()
+			} else if p.Age == 65 {
+				p.assignElderlyGoals()
+			}
 		}
+
 		// Check if anyone dies.
 		if gameconstants.DiesAtAgeWithinNDays(p.Age, 1) {
 			m.Population--
@@ -218,6 +308,10 @@ func (m *Map) matchSingles() {
 		if p.Dead || p.isMarried() || p.Age < 18 {
 			continue
 		}
+		// Check if we even want a partner.
+		if !p.Goals.IsSet(GoalAdultPartner) {
+			continue
+		}
 		if p.Gender == GenderMale {
 			men = append(men, p)
 		} else if p.Gender == GenderFemale {
@@ -246,6 +340,12 @@ func (m *Map) matchSingles() {
 			if mp.isMarried() {
 				continue
 			}
+			// Check if we're on the same page regarding children.
+			// TODO: Check other goals as well.
+			if wp.Goals.IsSet(GoalAdultChildren) != mp.Goals.IsSet(GoalAdultChildren) {
+				continue
+			}
+
 			if ageDiff := math.Abs(float64(wp.Age - mp.Age)); ageDiff < ageDiffFactor*float64(wp.Age) {
 				wp.Spouse = mp
 				mp.Spouse = wp
@@ -301,6 +401,14 @@ func (m *Map) advancePregnancies() {
 	// by the number of children they already have.
 	for _, p := range m.RealPop {
 		if p.isMarried() && p.Pregnant == 0 && p.Gender == GenderFemale {
+			// TODO: Check if both want children.
+			if !p.Goals.IsSet(GoalAdultChildren) && !p.Spouse.Goals.IsSet(GoalAdultChildren) && rand.Intn(1000) > 1 {
+				// If neither wants children, there is a very small chance of getting pregnant.
+				continue
+			} else if (!p.Goals.IsSet(GoalAdultChildren) || !p.Spouse.Goals.IsSet(GoalAdultChildren)) && rand.Intn(100) > 1 {
+				// If only one or wants children, there is a slight chance of getting pregnant.
+				continue
+			}
 			if rand.Intn(100) < 3-len(p.Children) {
 				p.Pregnant = numDaysPregnant
 			}
@@ -317,13 +425,29 @@ Loop:
 		if p.Dead {
 			continue
 		}
+
+		// Check if we are old enough to work or build a house.
+		if p.Age < 18 {
+			continue
+		}
+
+		// Check if we don't have a job yet and want one.
+		// TODO: This would require a place to work...
+		// Like, working on another farm, or upgrade the house with a farm plot, etc.
+		if p.Job == JobTypeUnemployed && p.Goals.IsSet(GoalAdultJob) {
+			p.Job = JobTypeFarmer
+		}
+
+		// If we have a job, we can earn resources.
 		// TODO: Once we are old enough, we can save up for a house.
 		// Maybe start with 16 years old?
-		if p.Age > 16 && rand.Intn(100) < 10 {
+		if p.Job != JobTypeUnemployed && rand.Intn(100) < 10 {
 			// TODO: Maybe use fractional resources?
 			p.Resources += 1 // 1 is quite a lot for a single day?
 		}
-		if p.Age < 18 {
+
+		// Check if we even want a home.
+		if !p.Goals.IsSet(GoalAdultHome) {
 			continue
 		}
 
@@ -332,10 +456,12 @@ Loop:
 			continue
 		}
 
-		// Check if we live with our parents and if we have a spouse.
-		// TODO: Check if we still live with our parents and move out if we have a spouse that is pregnant.
-		if p.LivesWithParents() && p.Spouse == nil {
-			// Wait until we have a spouse.
+		// Check if we live with our parents and if we want and have a spouse.
+		// If we don't want a spouse, we can move out on our own. If we plan
+		// to get married, we should wait until we have a spouse.
+		// TODO: Also factor in the wish to have children.
+		if p.LivesWithParents() && p.Spouse == nil && p.Goals.IsSet(GoalAdultPartner) {
+			// Wait until we have a spouse (if we want one).
 			continue
 		}
 
@@ -425,8 +551,9 @@ Loop:
 		}
 
 		// TODO: Find a suitable location for the house.
-		best, score := m.getHighestHouseFitness()
-		if !math.IsInf(score, -1) {
+		// If we are social, we want to live closer to other people.
+		best, score := m.getHighestHouseFitness(p.Goals.IsSet(GoalChildhoodSocialize))
+		if score != -1 {
 			log.Printf("Building a house for %v", p)
 
 			// Construct the house.
