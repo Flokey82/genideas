@@ -27,7 +27,7 @@ import (
 
 // Map represents the world map, which is a simple grid of tiles.
 type Map struct {
-	Day          int
+	Day          uint16
 	Year         int
 	Height       int
 	Width        int

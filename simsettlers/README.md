@@ -6,15 +6,55 @@ This is a WIP little procgen sim that simulates the growth of a small village. I
 
 ## TODO
 
+- [ ] Add roads
+    - [ ] Add bridges
 - [ ] Add a way to expand plots
 - [X] Tie buildings to individual residents
 - [-] Custom fitness functions for non-social individuals
     - [ ] Ranking system for purchasing a house for non-social individuals
 - [X] Add a way to buy/sell houses
+- [ ] Add a way to rent out houses
 - [ ] Buildings can be upgraded or abandoned
 - [ ] Add more building types
+    - [X] House
+    - [ ] Farm
+    - [ ] Workshop
+    - [X] Market
+    - [ ] Mill
+    - [ ] Smithy
+    - [ ] Tavern
+    - [ ] Church / Temple
+    - [ ] School
+    - [ ] Dungeon
+    - [X] Cemetery
+    - [ ] ...
 - [ ] Resource types
+    - [ ] Food
+    - [ ] Wood
+    - [ ] Stone
+    - [ ] Metal
+    - [ ] ...
+- [ ] Add a reputation system
+    - [ ] Note bullying
+    - [ ] Note theft
+- [ ] Add a way to track history
+    - [ ] of a person
+    - [ ] of a building
+- [ ] Add personal memories
+- [ ] Cause Goals or current needs to trigger tasks, which can last multiple days, be interrupted, paused, etc.
+    - [ ] Add a way to track the state and progress of a task
+    - [ ] Add different tasks
+        - [ ] Build / buy / repair / ... a house
+        - [ ] Gather resources
+        - [ ] Bully someone (sigh...)
+        - [ ] Steal something
+        - [ ] Go on an adventure
+        - [ ] Find a partner
 - [ ] Merge with simvillagesimple
+- [ ] Add limbs and body parts
+- [ ] Add a way to track injuries, scars, etc.
+- [ ] Add a way to track health
+- [ ] Find a different way to track construction jobs and ownership of buildings (not in the person struct)
 
 
 ## Notes to self

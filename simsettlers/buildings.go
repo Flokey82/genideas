@@ -72,10 +72,10 @@ func (m *Map) advanceConstruction() {
 // Building represents a building on the map.
 type Building struct {
 	X, Y      int       // position on the map
-	BuiltDay  int       // day the building was built
+	BuiltDay  uint16    // day the building was built
 	BuiltYear int       // year the building was built
-	Remaining int       // ticks until construction is complete
-	Condition int       // condition of the building
+	Remaining uint16    // ticks until construction is complete
+	Condition byte      // condition of the building
 	Type      string    // building type
 	Owners    []*Person // people who own the building
 	Occupants []*Person // people who live in the building
@@ -86,8 +86,8 @@ func NewBuilding(x, y int, t string) *Building {
 	return &Building{
 		X:         x,
 		Y:         y,
-		Remaining: buildingCosts[t], // The number of ticks remaining until the building is finished.
-		Condition: 100,              // The condition of the building.
+		Remaining: uint16(buildingCosts[t]), // The number of ticks remaining until the building is finished.
+		Condition: 100,                      // The condition of the building.
 		Type:      t,
 	}
 }

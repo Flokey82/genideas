@@ -24,6 +24,8 @@ func (g *Goal) String() string {
 			switch Goal(1 << i) {
 			case GoalChildhoodSocialize:
 				str += "S"
+			case GoalChildhoodBully:
+				str += "B"
 			case GoalAdultPartner:
 				str += "P"
 			case GoalAdultHome:
@@ -32,6 +34,8 @@ func (g *Goal) String() string {
 				str += "C"
 			case GoalAdultJob:
 				str += "J"
+			case GoalAdultAdventurer:
+				str += "A"
 			default:
 				str += "?"
 			}
@@ -45,37 +49,37 @@ func (g *Goal) String() string {
 const (
 	// TODO: Childhood goals.
 	GoalChildhoodSocialize Goal = 1 << 0
+	GoalChildhoodBully     Goal = 1 << 1
 	// TODO: Teenage goals.
 	// TODO: Adult goals.
 	// TODO: Elderly goals.
-	GoalAdultPartner  Goal = 1 << 1
-	GoalAdultHome     Goal = 1 << 2
-	GoalAdultChildren Goal = 1 << 3
-	GoalAdultJob      Goal = 1 << 4
+	GoalAdultPartner    Goal = 1 << 2
+	GoalAdultHome       Goal = 1 << 3
+	GoalAdultChildren   Goal = 1 << 4
+	GoalAdultJob        Goal = 1 << 5
+	GoalAdultAdventurer Goal = 1 << 6
 )
 
 // Person represents a person in the village.
 // TODO:
 // - Add a personality.
-// - Add a job.
-// - Allow multiple construction projects.
 type Person struct {
 	FirstName    string
 	LastName     string
-	Birthday     int
-	Age          int
-	Gender       int
-	Pregnant     int     // The number of days the person will still be pregnant.
-	Resources    int     // The amount of resources the person has.
-	Job          JobType // The job of the person.
-	Goals        Goal    // The goals of the person.
 	Dead         bool
-	Home         *Building   // The home of the person.
-	Constructing []*Building // The building the person is currently constructing. TODO: Allow multiple construction projects.
-	Owns         []*Building // The buildings the person owns.
+	Birthday     uint16      // day of the year the person was born
+	Age          uint16      // age of the person in years (pretty generous with the uint16)
+	Gender       byte        //
+	Pregnant     uint16      // days the person will still be pregnant
+	Goals        Goal        // personal goals
+	Resources    int         // wealth in resources
+	Job          JobType     // current job
+	Home         *Building   // home of the person
+	Constructing []*Building // buildings under construction
+	Owns         []*Building // buildings owned
 	Mother       *Person
 	Father       *Person
-	Spouse       *Person // The spouse of this person.
+	Spouse       *Person
 	Children     []*Person
 }
 
@@ -161,6 +165,9 @@ func (p *Person) assignChildhoodGoals() {
 	if rand.Intn(100) < 90 {
 		p.Goals |= GoalChildhoodSocialize
 	}
+	if rand.Intn(100) < 5 {
+		p.Goals |= GoalChildhoodBully
+	}
 }
 
 func (p *Person) assignAdultGoals() {
@@ -180,6 +187,9 @@ func (p *Person) assignAdultGoals() {
 	if rand.Intn(100) < 90 {
 		p.Goals |= GoalAdultJob
 	}
+	if rand.Intn(100) < 5 {
+		p.Goals |= GoalAdultAdventurer
+	}
 }
 
 func (p *Person) assignElderlyGoals() {
@@ -197,8 +207,8 @@ func (m *Map) addNRandomPeople(n int) {
 		p := &Person{
 			LastName:  m.lastGen.String(),
 			Birthday:  m.Day,
-			Age:       rand.Intn(20) + 18,
-			Gender:    rand.Intn(2),
+			Age:       uint16(rand.Intn(20) + 18),
+			Gender:    byte(rand.Intn(2)),
 			Resources: rand.Intn(10),
 		}
 		if p.Gender == GenderMale {
@@ -214,6 +224,65 @@ func (m *Map) addNRandomPeople(n int) {
 
 		m.RealPop = append(m.RealPop, p)
 	}
+}
+
+func (m *Map) handleDeath(p *Person) {
+	m.Population--
+	// TODO: Remove from spouse?
+	log.Printf("Died: %v", p)
+	p.Dead = true
+
+	// TODO:
+	// - Identify who will inherit all buildings, resources, etc.
+	// - Find all buildings that we own and transfer ownership to the spouse or children.
+	// - What if we are constructing a building? Transfer ownership to the spouse or children.
+	// - Allow multiple heirs.
+
+	heir := p.heir()
+	if heir != nil {
+		// Move resources to the heir.
+		heir.Resources += p.Resources
+
+		// Move buildings to the heir.
+		for _, b := range p.Owns {
+			// Remove from the occupants list of the building.
+			b.RemoveOccupant(p)
+
+			// Remove from the owners list of the building.
+			b.RemoveOwner(p)
+
+			// Add to the occupants list of the building.
+			b.AddOwner(heir)
+		}
+
+		// Move constructing buildings to the heir.
+		for _, b := range p.Constructing {
+			// Remove the deceased from the constructing list of the building.
+			b.RemoveOwner(p)
+
+			// Add heir to the owners list of the building.
+			b.AddOwner(heir)
+
+			// Add the building to the constructing list of the heir.
+			heir.Constructing = append(heir.Constructing, b)
+		}
+
+		// Move a homeless heir to the home of the deceased.
+		if p.Home != nil && heir.Home == nil {
+			heir.SetHome(p.Home)
+		}
+	}
+
+	if p.Home != nil {
+		// Remove from the occupants list of the home.
+		p.Home.RemoveOccupant(p)
+
+		// Remove from the owners list of the home.
+		p.Home.RemoveOwner(p)
+	}
+
+	// Move to the cemetery.
+	p.SetHome(m.Cemetery)
 }
 
 func (m *Map) agePop() {
@@ -237,63 +306,8 @@ func (m *Map) agePop() {
 		}
 
 		// Check if anyone dies.
-		if gameconstants.DiesAtAgeWithinNDays(p.Age, 1) {
-			m.Population--
-			// TODO: Remove from spouse?
-			log.Printf("Died: %v", p)
-			p.Dead = true
-
-			// TODO:
-			// - Identify who will inherit all buildings, resources, etc.
-			// - Find all buildings that we own and transfer ownership to the spouse or children.
-			// - What if we are constructing a building? Transfer ownership to the spouse or children.
-			// - Allow multiple heirs.
-
-			heir := p.heir()
-			if heir != nil {
-				// Move resources to the heir.
-				heir.Resources += p.Resources
-
-				// Move buildings to the heir.
-				for _, b := range p.Owns {
-					// Remove from the occupants list of the building.
-					b.RemoveOccupant(p)
-
-					// Remove from the owners list of the building.
-					b.RemoveOwner(p)
-
-					// Add to the occupants list of the building.
-					b.AddOwner(heir)
-				}
-
-				// Move constructing buildings to the heir.
-				for _, b := range p.Constructing {
-					// Remove the deceased from the constructing list of the building.
-					b.RemoveOwner(p)
-
-					// Add heir to the owners list of the building.
-					b.AddOwner(heir)
-
-					// Add the building to the constructing list of the heir.
-					heir.Constructing = append(heir.Constructing, b)
-				}
-
-				// Move a homeless heir to the home of the deceased.
-				if p.Home != nil && heir.Home == nil {
-					heir.SetHome(p.Home)
-				}
-			}
-
-			if p.Home != nil {
-				// Remove from the occupants list of the home.
-				p.Home.RemoveOccupant(p)
-
-				// Remove from the owners list of the home.
-				p.Home.RemoveOwner(p)
-			}
-
-			// Move to the cemetery.
-			p.SetHome(m.Cemetery)
+		if gameconstants.DiesAtAgeWithinNDays(int(p.Age), 1) {
+			m.handleDeath(p)
 		} else {
 			remPop = append(remPop, p)
 		}
@@ -377,7 +391,7 @@ func (m *Map) advancePregnancies() {
 					LastName: p.LastName, // Last name of the mother.
 					Birthday: m.Day,
 					Age:      0,
-					Gender:   rand.Intn(2),
+					Gender:   byte(rand.Intn(2)),
 				}
 				if child.Gender == GenderMale {
 					child.FirstName = m.firstGen[1].String()
@@ -410,7 +424,7 @@ func (m *Map) advancePregnancies() {
 				continue
 			}
 			if rand.Intn(100) < 3-len(p.Children) {
-				p.Pregnant = numDaysPregnant
+				p.Pregnant = uint16(numDaysPregnant)
 			}
 		}
 	}
@@ -419,41 +433,86 @@ func (m *Map) advancePregnancies() {
 func (m *Map) tickPeople() {
 	// If true, owners that live in a house will repair their homes.
 	repairHome := false
-
-Loop:
 	for _, p := range m.RealPop {
 		if p.Dead {
 			continue
 		}
 
 		// Check if we are old enough to work or build a house.
+		// TODO: We should vary this based on personality.
+		// Some people might refuse to retire, others might retire early.
 		if p.Age < 18 {
-			continue
+			m.tickChildhood(p)
+		} else if p.Age < 65 {
+			m.tickAdulthood(p, repairHome)
+		} else {
+			m.tickElderly(p)
+		}
+	}
+}
+
+func (m *Map) tickChildhood(p *Person) {
+	// TODO: Check if goals are satisfied or not.
+
+	// TODO: Factor this out into a function... This can be generalized as adults also bully other adults.
+	// If we are a bully, we might bully other children.
+	// NOTE: This breaks my heart to write this, but this is a simulation of life,
+	// and there are asshole children in the world. Bullying can change people's
+	// lives forever, and cause lasting damage. But it sometimes cause children to
+	// develop a strong sense of justice, and become a better person overall.
+	if p.Goals.IsSet(GoalChildhoodBully) && rand.Intn(100) < 1 && p.Age > 5 {
+		// Find a random child to bully.
+		var victims []*Person
+		for _, c := range m.RealPop {
+			// Not dead and similar age.
+			if c.Dead || c == p {
+				continue
+			}
+			if math.Abs(float64(c.Age-p.Age)) < 2 {
+				victims = append(victims, c)
+			}
 		}
 
+		// Pick a random victim.
+		// TODO: Usually we'd pick the weakest and most vulnerable victim.
+		// Also, we'd prefer picking on the same victim over and over again.
+		// Wow, I hate this so much.
+		if len(victims) > 0 {
+			victim := victims[rand.Intn(len(victims))]
+			log.Printf("%v is bullying %v", p, victim)
+			// Depending on the personality, this might result in violence, personality changes, etc.
+			if victim.Goals.IsSet(GoalChildhoodSocialize) && rand.Intn(100) < 5 {
+				// If the victim is social, they might loose the will to socialize.
+				victim.Goals &= ^GoalChildhoodSocialize
+			}
+		}
+	}
+}
+
+func (m *Map) tickAdulthood(p *Person, repairHome bool) {
+	// TODO: Check if goals are satisfied or not.
+
+	handleJob := func() {
 		// Check if we don't have a job yet and want one.
 		// TODO: This would require a place to work...
 		// Like, working on another farm, or upgrade the house with a farm plot, etc.
-		if p.Job == JobTypeUnemployed && p.Goals.IsSet(GoalAdultJob) {
+		if p.Job == JobTypeUnemployed {
 			p.Job = JobTypeFarmer
 		}
 
 		// If we have a job, we can earn resources.
-		// TODO: Once we are old enough, we can save up for a house.
+		// We might have a job, even though it is not our goal.
 		// Maybe start with 16 years old?
 		if p.Job != JobTypeUnemployed && rand.Intn(100) < 10 {
 			// TODO: Maybe use fractional resources?
 			p.Resources += 1 // 1 is quite a lot for a single day?
 		}
+	}
 
-		// Check if we even want a home.
-		if !p.Goals.IsSet(GoalAdultHome) {
-			continue
-		}
-
+	handleHome := func() {
 		// Check if we are already building a house or if our spouse is.
 		if p.Constructing != nil || p.Spouse != nil && p.Spouse.Constructing != nil {
-			continue
+			return
 		}
 
 		// Check if we live with our parents and if we want and have a spouse.
@@ -462,7 +521,7 @@ Loop:
 		// TODO: Also factor in the wish to have children.
 		if p.LivesWithParents() && p.Spouse == nil && p.Goals.IsSet(GoalAdultPartner) {
 			// Wait until we have a spouse (if we want one).
-			continue
+			return
 		}
 
 		// Check if we own our own home.
@@ -477,14 +536,14 @@ Loop:
 				p.Home.Condition++
 				p.Resources--
 			}
-			continue
+			return
 		}
 
 		// Check if our spouse owns their own home, and if so, move in.
 		if p.Spouse != nil && p.Spouse.OwnsOwnHome() {
 			p.SetHome(p.Spouse.Home)
 			p.Spouse.Home.AddOwner(p)
-			continue
+			return
 		}
 
 		// We want to move to a new place if:
@@ -541,13 +600,13 @@ Loop:
 				p.SetHome(b)
 				b.AddOwner(p)
 			}
-			continue Loop
+			return
 		}
 
 		// Can we afford to build a new house?
 		if budget < buildingCosts[BuildingTypeHouse] {
 			//log.Printf("Not enough resources to build a house")
-			continue
+			return
 		}
 
 		// TODO: Find a suitable location for the house.
@@ -575,4 +634,50 @@ Loop:
 			log.Printf("No suitable location for a house found")
 		}
 	}
+
+	handleAdventure := func() {
+		// Check if there is an adventure available to scratch that itch.
+		// ... or if we are already on an adventure.
+
+		// NOTE: Adventures should be memorable, rare occurrences with
+		// lasting effects on the person. High risk, high reward.
+		// This might get us killed, we migh bear scars, or maybe gain
+		// a new fear, a new skill, maybe an artifact, etc.
+		if rand.Intn(100) < 1 {
+			// We're going on an adventure!
+			// There is a chance that we die on our adventure.
+			// TODO: What if we just go missing? Could someone save us?
+			if rand.Intn(100) < 10 {
+				// We died on our adventure.
+				// We might be declared missing, someone might find our body,
+				// or we might never be found.
+				log.Printf("%s died on an adventure", p.String())
+				// TODO: Inheritence, ownership, legally dead, etc.
+				m.handleDeath(p)
+				return
+			}
+			// We survived the adventure.
+			loot := rand.Intn(1000)
+			p.Resources += loot
+			log.Printf("%s went on an adventure and found %d resources", p.String(), loot)
+		}
+	}
+
+	// Handle our job goal.
+	if p.Goals.IsSet(GoalAdultJob) {
+		handleJob()
+	}
+
+	// Check if we even want a home.
+	if p.Goals.IsSet(GoalAdultHome) {
+		handleHome()
+	}
+
+	// Check if we want to go on an adventure.
+	if p.Goals.IsSet(GoalAdultAdventurer) {
+		handleAdventure()
+	}
+}
+
+func (m *Map) tickElderly(p *Person) {
 }

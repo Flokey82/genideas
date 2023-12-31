@@ -45,6 +45,6 @@ func main() {
 
 	// Log all the people in the cemetery.
 	for _, p := range m.Cemetery.Occupants {
-		fmt.Printf("Cemetery: %v\n", p)
+		fmt.Printf("Cemetery: %v - %s\n", p, p.Goals.String())
 	}
 }

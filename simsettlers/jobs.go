@@ -1,6 +1,6 @@
 package simsettlers
 
-type JobType int
+type JobType byte
 
 const (
 	JobTypeUnemployed JobType = iota
