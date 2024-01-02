@@ -6,55 +6,91 @@ This is a WIP little procgen sim that simulates the growth of a small village. I
 
 ## TODO
 
-- [ ] Add roads
-    - [ ] Add bridges
-- [ ] Add a way to expand plots
-- [X] Tie buildings to individual residents
-- [-] Custom fitness functions for non-social individuals
-    - [ ] Ranking system for purchasing a house for non-social individuals
-- [X] Add a way to buy/sell houses
-- [ ] Add a way to rent out houses
-- [ ] Buildings can be upgraded or abandoned
-- [ ] Add more building types
-    - [X] House
-    - [ ] Farm
-    - [ ] Workshop
-    - [X] Market
-    - [ ] Mill
-    - [ ] Smithy
-    - [ ] Tavern
-    - [ ] Church / Temple
-    - [ ] School
-    - [ ] Dungeon
-    - [X] Cemetery
-    - [ ] ...
+- [X] Map
+    - [X] Mountains
+    - [X] Rivers
+    - [ ] Lakes
+    - [ ] Erosion
+    - [ ] Biomes / Resources
+    - [ ] Roads
+        - [ ] Bridges
+        - [ ] Tunnels
+- [ ] Property
+    - [-] Plots
+        - [ ] Pure plots
+        - [ ] Expandable plots
+    - [X] Buildings
+        - [X] Tie buildings to individual residents
+        - [-] Custom fitness functions for non-social individuals
+            - [ ] Ranking system for purchasing a house for non-social individuals
+        - [X] Add a way to buy/sell houses
+        - [ ] Add a way to rent out houses
+        - [ ] Buildings can be upgraded or abandoned
+        - [ ] Add more building types
+            - [X] Market
+            - [X] House
+            - [X] Cemetery
+            - [ ] Farm
+            - [ ] Workshop
+            - [ ] Mill
+            - [ ] Smithy
+            - [ ] Tavern
+            - [ ] Church / Temple
+            - [ ] School
+            - [ ] Dungeon
+            - [ ] Mine
+            - [ ] ...
+    - [ ] Roads
+    - [ ] Walls
+    - [ ] Fences
+    - [ ] Gates
 - [ ] Resource types
     - [ ] Food
     - [ ] Wood
     - [ ] Stone
     - [ ] Metal
     - [ ] ...
-- [ ] Add a reputation system
-    - [ ] Note bullying
-    - [ ] Note theft
+- [X] People
+    - [ ] Location / Movement
+        - [ ] Position (tile)
+        - [ ] Destination
+        - [ ] Steering / Movement
+        - [ ] Pathfinding
+    - [ ] Reputation system
+        - [ ] Note bullying
+        - [ ] Note theft
+    - [ ] Personal memories
+    - [X] Personal opinions
+        - [X] Running average
+        - [X] Incremental
+        - [ ] Decay
+        - [X] Opinion of other people
+        - [ ] Switch from *Person pointers to IDs (extending to items, places, concepts, etc.)
+    - [ ] Track personal goals
+        - [ ] Add a way to track the state and progress of a goal
+        - [ ] Find a different way to track construction jobs and ownership of buildings (not in the person struct)
+        - [ ] Add tasks for goal fulfillment
+            - [ ] Multi-step tasks
+            - [ ] Interruptable tasks
+            - [ ] Pausable tasks
+            - [ ] ...
+        - [X] Add different goals
+            - [X] Socialize
+            - [X] Find a partner
+                - [ ] Choose based on opinion etc.
+            - [X] Have children
+            - [X] Get a job
+            - [X] Build a house
+            - [X] Buy a house
+            - [ ] Gather resources
+            - [ ] ...
+    - [ ] Track health
+        - [ ] Limbs and body parts
+        - [ ] Injuries, scars, etc.
 - [ ] Add a way to track history
     - [ ] of a person
     - [ ] of a building
-- [ ] Add personal memories
-- [ ] Cause Goals or current needs to trigger tasks, which can last multiple days, be interrupted, paused, etc.
-    - [ ] Add a way to track the state and progress of a task
-    - [ ] Add different tasks
-        - [ ] Build / buy / repair / ... a house
-        - [ ] Gather resources
-        - [ ] Bully someone (sigh...)
-        - [ ] Steal something
-        - [ ] Go on an adventure
-        - [ ] Find a partner
 - [ ] Merge with simvillagesimple
-- [ ] Add limbs and body parts
-- [ ] Add a way to track injuries, scars, etc.
-- [ ] Add a way to track health
-- [ ] Find a different way to track construction jobs and ownership of buildings (not in the person struct)
 
 
 ## Notes to self

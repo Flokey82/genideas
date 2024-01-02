@@ -81,6 +81,28 @@ type Person struct {
 	Father       *Person
 	Spouse       *Person
 	Children     []*Person
+	Opinions     Opinions // opinions of other people
+}
+
+type Opinions map[*Person][2]int
+
+func (o Opinions) Value(p *Person) int {
+	return o[p][0]
+}
+
+func (o Opinions) Counter(p *Person) int {
+	return o[p][1]
+}
+
+func (o Opinions) IncrementBy(p *Person, value int) {
+	o[p] = [2]int{
+		min(max(o[p][0]+value, 0), 255),
+		min(o[p][1]+1, 255),
+	}
+}
+
+func (o Opinions) Change(p *Person, value int) {
+	o[p] = [2]int{min(max((o[p][0]*o[p][1]+value)/(o[p][1]+1), 0), 255), min(o[p][1]+1, 255)}
 }
 
 // OwnsOwnHome returns true if the person owns their own home.
@@ -210,6 +232,7 @@ func (m *Map) addNRandomPeople(n int) {
 			Age:       uint16(rand.Intn(20) + 18),
 			Gender:    byte(rand.Intn(2)),
 			Resources: rand.Intn(10),
+			Opinions:  make(Opinions),
 		}
 		if p.Gender == GenderMale {
 			p.FirstName = m.firstGen[1].String()
@@ -317,6 +340,8 @@ func (m *Map) agePop() {
 }
 
 func (m *Map) matchSingles() {
+	const ageDiffFactor = 0.25
+	const menTakeFemaleName = true
 	var men, women []*Person
 	for _, p := range m.RealPop {
 		if p.Dead || p.isMarried() || p.Age < 18 {
@@ -346,8 +371,6 @@ func (m *Map) matchSingles() {
 	// - Personalities matter.
 	// - Matching should not just happen, there should be a probability and some randomness.
 	// - There should be a chance that a person stays single (by choice, or because they just can't find the right person).
-	const ageDiffFactor = 0.25
-	const menTakeFemaleName = true
 	for _, wp := range women {
 		// Ladies' choice.
 		for _, mp := range men {
@@ -373,6 +396,9 @@ func (m *Map) matchSingles() {
 			}
 		}
 	}
+
+	// TODO: Instead, we should go through both men and women and find their respective best match
+	// based on their goals, opinions, etc.
 }
 
 func (m *Map) advancePregnancies() {
@@ -392,6 +418,7 @@ func (m *Map) advancePregnancies() {
 					Birthday: m.Day,
 					Age:      0,
 					Gender:   byte(rand.Intn(2)),
+					Opinions: make(Opinions),
 				}
 				if child.Gender == GenderMale {
 					child.FirstName = m.firstGen[1].String()
@@ -473,18 +500,75 @@ func (m *Map) tickChildhood(p *Person) {
 			}
 		}
 
-		// Pick a random victim.
+		// Sort by opinion.
+		sort.Slice(victims, func(i, j int) bool {
+			return p.Opinions.Value(victims[i]) < p.Opinions.Value(victims[j])
+		})
+
+		// Pick the victim with the lowest opinion by the bully.
 		// TODO: Usually we'd pick the weakest and most vulnerable victim.
 		// Also, we'd prefer picking on the same victim over and over again.
 		// Wow, I hate this so much.
 		if len(victims) > 0 {
-			victim := victims[rand.Intn(len(victims))]
+			victim := victims[0]
+			// TODO: Occasionally, we might mix it up and bully someone else.
+			if len(victims) > 1 && rand.Intn(100) < 10 {
+				victim = victims[min(rand.Intn(3), len(victims)-1)]
+			}
 			log.Printf("%v is bullying %v", p, victim)
+
+			// Change the victim's opinion of the bully.
+			victim.Opinions.IncrementBy(p, -20)
+
+			// Change the bully's opinion of the victim.
+			// TODO: The bullying might backfire, then we should change the bully's opinion of the victim positively
+			// to avoid bullying the same person unsuccessfully over and over again.
+			p.Opinions.IncrementBy(victim, -10)
+
 			// Depending on the personality, this might result in violence, personality changes, etc.
 			if victim.Goals.IsSet(GoalChildhoodSocialize) && rand.Intn(100) < 5 {
 				// If the victim is social, they might loose the will to socialize.
 				victim.Goals &= ^GoalChildhoodSocialize
 			}
+		}
+	}
+
+	// If we socialize, let's see if we can make friends.
+	if p.Goals.IsSet(GoalChildhoodSocialize) && rand.Intn(100) < 1 && p.Age > 5 {
+		// TODO: Factor this out into a function... This can be generalized as adults also socialize with other adults.
+		// Find a random individual of similar age to socialize with.
+		var friends []*Person
+		for _, c := range m.RealPop {
+			// Not dead and similar age.
+			if c.Dead || c == p {
+				continue
+			}
+			if math.Abs(float64(c.Age-p.Age)) < 2 {
+				friends = append(friends, c)
+			}
+		}
+
+		// Sort by opinion.
+		sort.Slice(friends, func(i, j int) bool {
+			return p.Opinions.Value(friends[i]) > p.Opinions.Value(friends[j])
+		})
+
+		// Pick the friend with the highest opinion by the person.
+		if len(friends) > 0 {
+			friend := friends[0]
+			// TODO: Occasionally, we might mix it up and socialize with someone else.
+			if len(friends) > 1 && rand.Intn(100) < 10 {
+				friend = friends[min(rand.Intn(3), len(friends)-1)]
+			}
+			log.Printf("%v is socializing with %v", p, friend)
+
+			// TODO: Based on personality, we might become friends, or we might become enemies.
+
+			// Change the friend's opinion of the person.
+			friend.Opinions.IncrementBy(p, 10)
+
+			// Change the person's opinion of the friend.
+			p.Opinions.IncrementBy(friend, 10)
 		}
 	}
 }
@@ -676,6 +760,17 @@ func (m *Map) tickAdulthood(p *Person, repairHome bool) {
 	// Check if we want to go on an adventure.
 	if p.Goals.IsSet(GoalAdultAdventurer) {
 		handleAdventure()
+	}
+
+	// Check if we want to find a partner.
+	if p.Goals.IsSet(GoalAdultPartner) {
+		// TODO: Go through the list of people that we know,
+		// and pick the person we consider the best match.
+		// Depending on the personality, we might have different
+		// criteria for what makes a good match. It might be who
+		// we like the most, who we hate the least, who is the
+		// most attractive / high status, who is the most wealthy,
+		// etc.
 	}
 }
 

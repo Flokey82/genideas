@@ -41,6 +41,10 @@ func main() {
 			str += " (unemployed)"
 		}
 		fmt.Println(str)
+		// Log opinions.
+		for opp, o := range p.Opinions {
+			fmt.Printf("\t%v: %v\n", opp, o)
+		}
 	}
 
 	// Log all the people in the cemetery.
