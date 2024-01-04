@@ -97,7 +97,11 @@ func (m *Map) AddBuilding(x, y int, t string) *Building {
 	b := NewBuilding(x, y, t)
 	b.BuiltDay = m.Day
 	b.BuiltYear = m.Year
-	m.Construction = append(m.Construction, b)
+	if b.Remaining == 0 {
+		m.Buildings = append(m.Buildings, b)
+	} else {
+		m.Construction = append(m.Construction, b)
+	}
 	return b
 }
 
@@ -184,6 +188,7 @@ const (
 	BuildingTypeMarket   = "market"
 	BuildingTypeHouse    = "house"
 	BuildingTypeCemetery = "cemetery"
+	BuildingTypeDungeon  = "dungeon"
 )
 
 var buildingCosts = map[string]int{
@@ -256,6 +261,122 @@ func (m *Map) fitnessScoreFlux(i int) float64 {
 
 	// Lower flux is better.
 	return 1 - m.Flux[i]
+}
+
+func (m *Map) calcSteepness() []float64 {
+	// Calculate the steepness of each cell.
+	steepness := make([]float64, len(m.Flux))
+	for i := range steepness {
+		// Calculate the steepness of the cell by comparing the elevation of the cell
+		// to the elevation of the surrounding cells.
+		elev := m.Elevation[i]
+		var maxDiff float64
+		for _, n := range m.Neighbors(i%m.Width, i/m.Width) {
+			diff := math.Abs(elev - m.Elevation[n])
+			if diff > maxDiff {
+				maxDiff = diff
+			}
+		}
+		steepness[i] = maxDiff
+	}
+
+	return steepness
+}
+
+func bellCurve(x, mu, sigma float64) float64 {
+	return 1 / (sigma * math.Sqrt(2*math.Pi)) * math.Exp(-(x-mu)*(x-mu)/(2*sigma*sigma))
+}
+
+func (m *Map) calcDistanceToBorder() []float64 {
+	// Calculate the distance to the border of the map.
+	dist := make([]float64, len(m.Flux))
+	for i := range dist {
+		x := float64(i % m.Width)
+		y := float64(i / m.Width)
+		x -= float64(m.Width / 2)
+		y -= float64(m.Height / 2)
+
+		x /= float64(m.Width / 2)
+		y /= float64(m.Height / 2)
+
+		// Now invert the distance, so that the center of the map has the highest score.
+		distVal := (1.0 - 1.0/(1.0+math.Sqrt(x*x+y*y)))
+		dist[i] = distVal
+	}
+	return dist
+}
+
+func (m *Map) calcDistanceToCenter() []float64 {
+	// Calculate the distance to the center of the map.
+	dist := make([]float64, len(m.Flux))
+	for i := range dist {
+		x := float64(i % m.Width)
+		y := float64(i / m.Width)
+		x -= float64(m.Width / 2)
+		y -= float64(m.Height / 2)
+
+		x /= float64(m.Width / 2)
+		y /= float64(m.Height / 2)
+
+		distVal := math.Sqrt(x*x + y*y)
+		dist[i] = distVal
+	}
+	return dist
+}
+
+func (m *Map) calcFitnessScoreDungeon() []float64 {
+	// Calculate the fitness score for each point.
+	// We want to put the dungeon at a higher elevation or the foot at a mounain.
+	// We might calculate the steepness of a tile and use that as a fitness score.
+	fitness := make([]float64, len(m.Flux))
+	for i := range fitness {
+		fitness[i] = -1
+	}
+
+	steepness := m.calcSteepness()
+
+	// distToBorder := m.calcDistanceToBorder()
+	// distToCenter := m.calcDistanceToCenter()
+
+	for i := range fitness {
+		// Can't build on water.
+		if m.Flux[i] > fluxRiverThreshold {
+			// This cell is not suitable.
+			continue
+		}
+		var fit float64
+		// Steeper is better.
+		fit += steepness[i]
+
+		// We use a bell curve to calculate the fitness score related
+		// to the elevation of the cell.
+		// The peak of the curve is at 0.5, so that the fitness score is
+		// 1.0 at the average elevation of the map.
+
+		var curveVal float64
+		x := m.Elevation[i]
+		mu := 0.5
+		sigma := 0.1
+		curveVal = bellCurve(x, mu, sigma)
+		log.Printf("Elevation: %v, curveVal: %v", x, curveVal)
+
+		fit += curveVal
+
+		// TODO:
+		// - Maximize the distance to other dungeons.
+		for _, b := range m.Dungeons {
+			fit *= distanceToBuilding(i%m.Width, i/m.Width, b)
+		}
+		// - Avoid corners of the map.
+		// fit += (1 - distToBorder[i]) // * distToCenter[i]
+		// - Avoid the center of the map.
+
+		fitness[i] = fit
+	}
+
+	normalize(fitness)
+
+	return fitness
 }
 
 func (m *Map) calcFitnessScoreHouse(closerIsBetter bool) []float64 {

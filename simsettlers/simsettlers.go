@@ -34,8 +34,9 @@ type Map struct {
 	Elevation    []float64
 	Flux         []float64
 	TileType     []int
-	Root         *Building // The root building, which the settlers will build around.
-	Cemetery     *Building // The cemetery.
+	Dungeons     []*Building // The dungeons.
+	Root         *Building   // The root building, which the settlers will build around.
+	Cemetery     *Building   // The cemetery.
 	Buildings    []*Building
 	Construction []*Building
 	Resources    int
@@ -308,6 +309,7 @@ func (m *Map) ExportPNG(filename string) error {
 	fs = m.calcFitnessScoreHouse(false)
 	// normalize(fs)
 	fs = m.Elevation
+	//fs = m.calcFitnessScoreDungeon()
 	//fs = m.Flux
 	//
 	normalize(m.Flux)
@@ -348,6 +350,11 @@ func (m *Map) ExportPNG(filename string) error {
 
 	// Draw the root building.
 	img.Set(m.Root.X, m.Root.Y, color.RGBA{0, 255, 0, 255})
+
+	// Draw the dungeon.
+	for _, d := range m.Dungeons {
+		img.Set(d.X, d.Y, color.RGBA{233, 128, 0, 255})
+	}
 
 	// Encode the image as PNG.
 	f, err := os.Create(filename)
@@ -406,6 +413,23 @@ func (m *Map) Settle() {
 
 	// Build the first building.
 	m.Root = m.AddBuilding(best%m.Width, best/m.Width, BuildingTypeMarket)
+
+	// Add the dungeon.
+	// Find the best spot for the dungeon.
+	const numDungeons = 4
+	for i := 0; i < numDungeons; i++ {
+		fs = m.calcFitnessScoreDungeon()
+		best = 0
+		normalize(fs)
+		for i := range fs {
+			if fs[i] > fs[best] {
+				best = i
+			}
+		}
+		x := best % m.Width
+		y := best / m.Width
+		m.Dungeons = append(m.Dungeons, m.AddBuilding(x, y, BuildingTypeDungeon))
+	}
 }
 
 // Tick advances the simulation by one tick.

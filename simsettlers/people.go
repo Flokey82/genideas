@@ -8,6 +8,7 @@ import (
 	"sort"
 
 	"github.com/Flokey82/go_gens/gameconstants"
+	"github.com/Flokey82/go_gens/genlanguage"
 )
 
 type Goal uint32
@@ -530,6 +531,25 @@ func (m *Map) tickChildhood(p *Person) {
 				// If the victim is social, they might loose the will to socialize.
 				victim.Goals &= ^GoalChildhoodSocialize
 			}
+
+			// If the victim is bullied too much, they might become a bully themselves.
+			if !victim.Goals.IsSet(GoalChildhoodBully) && rand.Intn(100) < 1 {
+				victim.Goals |= GoalChildhoodBully
+			}
+
+			// There might be a chance that the victim becomes violent and kills or injures the bully.
+			if rand.Intn(100) < 1 {
+				if rand.Intn(100) < 10 {
+					log.Printf("%v killed %v", victim, p)
+					m.handleDeath(p)
+					// TODO: This is a crime committed by the victim,
+					// we need to find a way to handle this.
+				} else {
+					log.Printf("%v injured %v", victim, p)
+					// The bully will be forced to respect the victim a little more.
+					p.Opinions.IncrementBy(victim, 10)
+				}
+			}
 		}
 	}
 
@@ -730,20 +750,26 @@ func (m *Map) tickAdulthood(p *Person, repairHome bool) {
 		if rand.Intn(100) < 1 {
 			// We're going on an adventure!
 			// There is a chance that we die on our adventure.
+
+			// Pick a random enemy.
+			enemies := []string{"goblin", "troll", "dragon", "bear", "wolf", "orc", "giant", "spider", "snake", "bandit"}
+			enemy := enemies[rand.Intn(len(enemies))]
+
 			// TODO: What if we just go missing? Could someone save us?
 			if rand.Intn(100) < 10 {
 				// We died on our adventure.
 				// We might be declared missing, someone might find our body,
 				// or we might never be found.
-				log.Printf("%s died on an adventure", p.String())
+				log.Printf("%s died on an adventure, killed by %s %s", p.String(), genlanguage.GetArticle(enemy), enemy)
 				// TODO: Inheritence, ownership, legally dead, etc.
 				m.handleDeath(p)
 				return
 			}
+
 			// We survived the adventure.
 			loot := rand.Intn(1000)
 			p.Resources += loot
-			log.Printf("%s went on an adventure and found %d resources", p.String(), loot)
+			log.Printf("%s went on an adventure, killed %s %s and found %d resources", p.String(), genlanguage.GetArticle(enemy), enemy, loot)
 		}
 	}
 
