@@ -11,13 +11,9 @@ package simsettlers
 
 import (
 	"fmt"
-	"image"
-	"image/color"
-	"image/png"
 	"log"
 	"math"
 	"math/rand"
-	"os"
 	"sort"
 
 	"github.com/Flokey82/go_gens/genheightmap"
@@ -44,6 +40,7 @@ type Map struct {
 	RealPop      []*Person
 	firstGen     [2]fmt.Stringer // First name generators (male/female).
 	lastGen      fmt.Stringer    // Last name generators.
+	Export       *webpExport
 }
 
 // first name prefixes for fantasyname generator.
@@ -60,6 +57,7 @@ func NewMap(height, width int) *Map {
 		Resources:  100,
 		Population: 15,
 		Cemetery:   NewBuilding(0, 0, BuildingTypeCemetery),
+		Export:     newWebPExport(width, height),
 	}
 
 	// Initialize name generation.
@@ -238,15 +236,6 @@ func (m *Map) calcFlux() {
 			m.Flux[downhill[i]] += m.Flux[i]
 		}
 	}
-
-	// Draw a max-flux line through the map.
-	// This is for debugging purposes only and will create a "river" through the map.
-	/*
-		y := m.Height / 2
-		for x := 0; x < m.Width; x++ {
-			m.Flux[x+y*m.Width] = 1.0
-		}
-	*/
 }
 
 func (m *Map) calcFitnessScore() []float64 {
@@ -297,73 +286,6 @@ func normalize(values []float64) {
 }
 
 const fluxRiverThreshold = 0.01
-
-// ExportPNG exports the map as a PNG file.
-func (m *Map) ExportPNG(filename string) error {
-	// We will draw the elevation as a grayscale image and
-	// the flux above a certain threshold in blue.
-	img := image.NewRGBA(image.Rect(0, 0, m.Width, m.Height))
-
-	// Calculate the fitness score for each point.
-	fs := m.calcFitnessScore()
-	fs = m.calcFitnessScoreHouse(false)
-	// normalize(fs)
-	fs = m.Elevation
-	//fs = m.calcFitnessScoreDungeon()
-	//fs = m.Flux
-	//
-	normalize(m.Flux)
-
-	for x := 0; x < m.Width; x++ {
-		for y := 0; y < m.Height; y++ {
-			// Draw the elevation as grayscale.
-			// We will use the full range of grayscale values from 0 to 255.
-			// The lowest point will be black, the highest point white.
-			// We will use the elevation as a percentage of the full range.
-			// This means that the lowest point will be black, the highest point white.
-			// The lowest point will be black, the highest point white.
-			img.Set(x, y, color.Gray{uint8(fs[x+y*m.Width] * 255)})
-		}
-	}
-
-	// Draw the flux.
-	for x := 0; x < m.Width; x++ {
-		for y := 0; y < m.Height; y++ {
-			if m.Flux[x+y*m.Width] > fluxRiverThreshold {
-				// Scale the flux to the range 0-255.
-				fluxVal := uint8(m.Flux[x+y*m.Width] * 255)
-
-				img.Set(x, y, color.RGBA{fluxVal, fluxVal, 255, 255})
-			}
-		}
-	}
-
-	// Draw the buildings.
-	for _, b := range m.Buildings {
-		img.Set(b.X, b.Y, color.RGBA{255, 0, 0, 255})
-	}
-
-	// Draw the construction sites.
-	for _, b := range m.Construction {
-		img.Set(b.X, b.Y, color.RGBA{255, 255, 0, 255})
-	}
-
-	// Draw the root building.
-	img.Set(m.Root.X, m.Root.Y, color.RGBA{0, 255, 0, 255})
-
-	// Draw the dungeon.
-	for _, d := range m.Dungeons {
-		img.Set(d.X, d.Y, color.RGBA{233, 128, 0, 255})
-	}
-
-	// Encode the image as PNG.
-	f, err := os.Create(filename)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	return png.Encode(f, img)
-}
 
 // Neighbors returns the neighbors of the given point.
 func (m *Map) Neighbors(x, y int) []int {
@@ -433,7 +355,7 @@ func (m *Map) Settle() {
 }
 
 // Tick advances the simulation by one tick.
-func (m *Map) Tick() {
+func (m *Map) Tick(elapsed float64) {
 	m.Day++
 	if m.Day > 365 {
 		m.Day = 1
@@ -461,7 +383,7 @@ func (m *Map) Tick() {
 	m.advanceConstruction()
 
 	// Construct more houses if needed.
-	m.tickPeople()
+	m.tickPeople(elapsed)
 	// m.constructMoreHouses()
 
 	// Match singles.
@@ -469,4 +391,6 @@ func (m *Map) Tick() {
 
 	// Advance pregnancies.
 	m.advancePregnancies()
+
+	m.storeWebPFrame()
 }

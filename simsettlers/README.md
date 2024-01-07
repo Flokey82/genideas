@@ -6,6 +6,12 @@ This is a WIP little procgen sim that simulates the growth of a small village. I
 
 ## TODO
 
+- [ ] Add calendar
+    - [X] Years
+    - [ ] Seasons
+    - [ ] Months
+    - [X] Days
+    - [ ] Time of day
 - [X] Map
     - [X] Mountains
     - [X] Rivers
@@ -37,7 +43,7 @@ This is a WIP little procgen sim that simulates the growth of a small village. I
             - [ ] Tavern
             - [ ] Church / Temple
             - [ ] School
-            - [ ] Dungeon
+            - [X] Dungeon
             - [ ] Mine
             - [ ] ...
     - [ ] Roads
@@ -51,10 +57,11 @@ This is a WIP little procgen sim that simulates the growth of a small village. I
     - [ ] Metal
     - [ ] ...
 - [X] People
+    - [ ] Daily routines
     - [ ] Location / Movement
-        - [ ] Position (tile)
+        - [X] Position (tile)
         - [ ] Destination
-        - [ ] Steering / Movement
+        - [X] Steering / Movement
         - [ ] Pathfinding
     - [ ] Reputation system
         - [ ] Note bullying
@@ -67,10 +74,10 @@ This is a WIP little procgen sim that simulates the growth of a small village. I
         - [X] Opinion of other people
         - [ ] Switch from *Person pointers to IDs (extending to items, places, concepts, etc.)
     - [ ] Track personal goals
-        - [ ] Add a way to track the state and progress of a goal
+        - [-] Add a way to track the state and progress of a goal
         - [ ] Find a different way to track construction jobs and ownership of buildings (not in the person struct)
         - [ ] Add tasks for goal fulfillment
-            - [ ] Multi-step tasks
+            - [X] Multi-step tasks
             - [ ] Interruptable tasks
             - [ ] Pausable tasks
             - [ ] ...

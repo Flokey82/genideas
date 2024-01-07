@@ -2,16 +2,22 @@ package main
 
 import (
 	"fmt"
+	"time"
 
+	"github.com/Flokey82/gameloop"
 	"github.com/Flokey82/genideas/simsettlers"
 )
 
 func main() {
 	m := simsettlers.NewMap(200, 200)
 	m.Settle()
-	for i := 0; i < 100*365; i++ {
-		m.Tick()
-	}
+
+	loop := gameloop.New(time.Second/60, m.Tick)
+	loop.Start()
+	// Wait for a keypress.
+	fmt.Scanln()
+	loop.Stop()
+
 	m.ExportPNG("test.png")
 
 	// Log all houses and their occupants.
@@ -51,4 +57,6 @@ func main() {
 	for _, p := range m.Cemetery.Occupants {
 		fmt.Printf("Cemetery: %v - %s\n", p, p.Goals.String())
 	}
+
+	m.Export.ExportWebp("test.webp")
 }
