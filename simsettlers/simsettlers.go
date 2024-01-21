@@ -23,8 +23,7 @@ import (
 
 // Map represents the world map, which is a simple grid of tiles.
 type Map struct {
-	Day          uint16
-	Year         int
+	Calendar
 	Height       int
 	Width        int
 	Elevation    []float64
@@ -356,11 +355,8 @@ func (m *Map) Settle() {
 
 // Tick advances the simulation by one tick.
 func (m *Map) Tick(elapsed float64) {
-	m.Day++
-	if m.Day > 365 {
-		m.Day = 1
-		m.Year++
-	}
+	// Advance the time of day.
+	m.TickCalendar(elapsed)
 
 	// Age the population.
 	m.agePop()

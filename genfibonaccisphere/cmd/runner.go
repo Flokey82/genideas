@@ -29,4 +29,5 @@ func main() {
 		}
 	}
 	fmt.Println("Mismatches:", mismatches)
+	genfibonaccisphere.Gen2dContinents()
 }

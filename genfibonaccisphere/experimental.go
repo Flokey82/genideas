@@ -170,7 +170,7 @@ func (sphere *SphereWithContinents) GetCartesianDistance(lat1, lon1, lat2, lon2 
 	return math.Sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2) + (z1-z2)*(z1-z2))
 }
 
-func gen2dContinents() {
+func Gen2dContinents() {
 
 	// Generate 6 seed points:
 	// North pole, south pole, and 4 points around the equator.

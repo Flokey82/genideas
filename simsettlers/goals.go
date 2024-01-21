@@ -553,14 +553,14 @@ func newDungeonCrawl(p *Person, d *Building, onSuccess, onFailure func()) Tree {
 	enemy := enemies[rand.Intn(len(enemies))]
 
 	// Pick a random duration for the fight.
-	dur := int(rand.Float64() * 10)
+	dur := rand.Float64() * 10
 
 	// TODO: What if we simply fail to reach the dungeon?
 	// In this case, we should probably just go back home.
 	log.Printf("%s is going to the location at %d,%d", p.String(), d.X, d.Y)
 	tRoot := NewTaskMoveToXY(p, d.X, d.Y) // Move to the dungeon.
 	t := tRoot.Then(NewTaskGeneric(p, "FightMonster", func(elapsed float64) TaskStatus {
-		dur -= int(elapsed)
+		dur -= elapsed
 		if dur <= 0 {
 			if rand.Intn(100) < 10 {
 				log.Printf("%s died on an adventure, killed by %s %s", p.String(), genlanguage.GetArticle(enemy), enemy)
@@ -569,7 +569,7 @@ func newDungeonCrawl(p *Person, d *Building, onSuccess, onFailure func()) Tree {
 			log.Printf("%s killed %s %s", p.String(), genlanguage.GetArticle(enemy), enemy)
 			return TaskStatusCompleted
 		}
-		log.Printf("%s is fighting %s %s", p.String(), genlanguage.GetArticle(enemy), enemy)
+		log.Printf("%s is fighting %s %s (%.2f/%.2f)", p.String(), genlanguage.GetArticle(enemy), enemy, dur, elapsed)
 		return TaskStatusInProgress
 	})) // Fight the monster.
 	t.Then(NewTaskMoveToXY(p, homeX, homeY)) // Move back home.
